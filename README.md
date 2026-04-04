@@ -1,4 +1,4 @@
-# Acceso — Credit Passport for Latino SMBs
+# Fundalo — Credit Passport for Latino SMBs
 
 Bilingual alternative credit platform that reads informal transactions
 (Zelle, Venmo, cash) to build a creditworthiness profile for Hispanic
