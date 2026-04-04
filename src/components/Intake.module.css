@@ -1,0 +1,206 @@
+.wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  background: linear-gradient(160deg, #1e3a8a 0%, #2563eb 60%, #059669 100%);
+  padding: 2rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sidebarTop { display: flex; flex-direction: column; gap: 2.5rem; }
+
+.logo { display: flex; align-items: center; gap: 10px; }
+
+.logoIcon {
+  width: 36px; height: 36px;
+  background: rgba(255,255,255,0.2);
+  color: #fff; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 16px;
+}
+
+.logoText { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+
+.steps { display: flex; flex-direction: column; gap: 6px; }
+
+.stepItem {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  opacity: 0.5;
+  transition: all 0.2s;
+}
+
+.stepActive { opacity: 1; background: rgba(255,255,255,0.15); }
+.stepDone { opacity: 0.8; }
+
+.stepBubble {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  flex-shrink: 0;
+}
+
+.stepActive .stepBubble { background: #fff; color: var(--primary); }
+.stepDone .stepBubble { background: #6ee7b7; color: #065f46; }
+
+.stepName { font-size: 13px; font-weight: 700; color: #fff; }
+
+.sidebarQuote {
+  font-size: 13px; font-style: italic;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.6;
+  border-left: 2px solid rgba(255,255,255,0.3);
+  padding-left: 12px;
+}
+
+.main {
+  flex: 1;
+  padding: 2rem 2.5rem;
+  overflow-y: auto;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mainTop {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 2rem;
+}
+
+.backBtn {
+  background: none; border: none;
+  color: var(--text-muted); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: color 0.15s; padding: 0;
+}
+.backBtn:hover { color: var(--primary); }
+
+.langToggle {
+  display: flex;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 3px; gap: 2px;
+}
+.langToggle button {
+  background: transparent; border: none;
+  color: var(--text-muted); font-size: 12px; font-weight: 700;
+  padding: 5px 12px; border-radius: var(--radius-full);
+  cursor: pointer; transition: all 0.15s;
+}
+.langOn { background: var(--bg-white) !important; color: var(--primary) !important; box-shadow: var(--shadow-sm); }
+
+.stepNum {
+  font-size: 11px; font-weight: 800; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px;
+}
+
+.title {
+  font-size: 28px; font-weight: 800; color: var(--text);
+  letter-spacing: -0.5px; margin-bottom: 4px;
+}
+
+.sub { font-size: 14px; color: var(--text-secondary); font-weight: 500; margin-bottom: 1.75rem; }
+
+.fields { display: flex; flex-direction: column; gap: 16px; }
+
+.field { display: flex; flex-direction: column; gap: 7px; }
+
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.pillGrid { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.pill {
+  padding: 9px 18px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border);
+  color: var(--text-secondary); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.pillActive {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.radioCol { display: flex; flex-direction: column; gap: 8px; }
+
+.radioCard {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 16px;
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border);
+  color: var(--text-secondary); font-size: 14px; font-weight: 600;
+  text-align: left; cursor: pointer; transition: all 0.15s;
+}
+.radioActive { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+
+.radioCircle {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--border); flex-shrink: 0;
+  transition: all 0.15s;
+}
+.radioCircleOn { border-color: var(--primary); background: var(--primary); box-shadow: inset 0 0 0 3px #fff; }
+
+.assetRow { display: flex; gap: 8px; }
+
+.addBtn {
+  background: var(--primary); color: #fff;
+  border: none; border-radius: var(--radius);
+  width: 48px; flex-shrink: 0; font-size: 22px; font-weight: 700;
+  cursor: pointer; transition: background 0.15s;
+}
+.addBtn:hover { background: var(--primary-hover); }
+
+.hint { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-top: 4px; }
+
+.assetList { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.assetChip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--growth-light);
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  font-size: 13px; font-weight: 600; color: var(--growth);
+}
+.assetChip button {
+  background: none; border: none; color: var(--growth);
+  font-size: 16px; cursor: pointer; padding: 0; line-height: 1;
+}
+
+.emptyAssets {
+  background: var(--bg-surface);
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem; text-align: center;
+  color: var(--text-secondary); font-size: 14px; font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .sidebar { display: none; }
+  .main { padding: 1.5rem; max-width: 100%; }
+}
+
+.pricePreview {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-top: 8px;
+  background: var(--primary-light);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+  padding: 8px 14px;
+}
+.pricePreview strong { color: var(--primary); }
