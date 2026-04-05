@@ -8,7 +8,7 @@ begin
     where typname = 'transaction_source'
       and typnamespace = 'public'::regnamespace
   ) then
-    create type public.transaction_source as enum ('plaid', 'venmo_csv', 'cash_manual');
+    create type public.transaction_source as enum ('plaid', 'cash_manual');
   end if;
 
   if not exists (

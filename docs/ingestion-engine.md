@@ -1,6 +1,6 @@
 # Fundalo Ingestion Engine
 
-This document focuses on how Fundalo ingests bank and payment-app activity into a unified ledger.
+This document focuses on how Fundalo ingests bank and manual financial activity into a unified ledger.
 
 Receipts are included as a supporting evidence layer, not as a required dependency for the first version of the ledger.
 
@@ -25,27 +25,24 @@ Plaid is used for bank transactions. This is the primary path for detecting:
 Important note:
 Zelle does not arrive through a dedicated Zelle API here. It appears as bank transaction activity surfaced through Plaid transaction sync results.
 
-### Venmo CSV upload
+### Manual cash entry
 
-Venmo is ingested through user-uploaded CSV statements. This is the reliable MVP path for pulling Venmo history into Fundalo.
+Manual entry exists for cash-only activity or missing business events that are not represented cleanly in the bank feed.
 
-We parse:
+We collect:
 
 1. `Date`
-2. `ID`
-3. `Type`
-4. `Status`
-5. `Note`
-6. `From`
-7. `To`
-8. `Amount`
+2. `Amount`
+3. `Direction`
+4. `Category`
+5. `Description`
 
 ## Unified Ledger Model
 
 We keep two levels of storage:
 
 1. `raw_transactions`
-This stores the original Plaid payload or parsed Venmo CSV row for auditability.
+This stores the original Plaid payload or manual entry payload for auditability.
 
 2. `ledger_transactions`
 This stores the normalized business-facing transaction used for scoring and reporting.
@@ -65,15 +62,14 @@ One-time bank linking"] --> A2["/transactions/sync
 Initial pull plus ongoing sync updates"]
     A2 --> A3["raw_transactions
 Store full Plaid payload"]
-    A3 --> A4["Detect Zelle / transfer / Venmo patterns
+    A3 --> A4["Detect Zelle / transfer patterns
 Use name, original_description, merchant_name, counterparties"]
     A4 --> A5["Normalize into ledger_transactions"]
 
-    B1["Venmo CSV upload
-Manual import from user statement
-Recommended monthly or quarterly"] --> B2["CSV parser"]
+    B1["Manual cash entry
+Fallback for off-bank activity"] --> B2["POST /api/ingest/manual-transaction"]
     B2 --> B3["raw_transactions
-Store parsed CSV row"]
+Store manual entry payload"]
     B3 --> B4["Normalize into ledger_transactions"]
 
     A5 --> C1["Deduplicate by amount + date window + source heuristics"]
@@ -103,8 +99,7 @@ Detection priority:
 Special tagging rules:
 
 1. If text contains `ZELLE`, tag as `plaid_zelle_candidate`
-2. If text contains `VENMO`, tag as `plaid_venmo_candidate`
-3. If text contains `TRANSFER`, tag as `plaid_transfer_candidate`
+2. If text contains `TRANSFER`, tag as `plaid_transfer_candidate`
 
 We preserve both:
 
@@ -113,19 +108,15 @@ We preserve both:
 
 That keeps the UI readable while preserving audit evidence.
 
-## Venmo Deduplication Rules
+## Manual Entry Rules
 
-Venmo rows should be checked against Plaid-origin transactions using:
+Manual cash entries should only be used when activity is not already represented clearly in the bank feed.
 
-1. Same absolute amount
-2. Date within plus or minus one day
-3. Optional text similarity on note / description
+Recommended handling:
 
-If matched:
-
-1. Keep the new Venmo row for evidence
-2. Mark the normalized ledger row as `is_duplicate = true`
-3. Preserve provenance so the officer report can show where the transaction came from
+1. Insert the manual row into `raw_transactions` with `source = cash_manual`
+2. Normalize it into `ledger_transactions`
+3. If it overlaps a Plaid transaction closely, flag it for review instead of silently double-counting
 
 ## Why this matters for Fondo Score
 
@@ -143,7 +134,7 @@ Monthly net cash flow and operating capacity
 Build first:
 
 1. Plaid connection and sync
-2. Venmo CSV upload
+2. Manual cash entry
 3. Raw transaction storage
 4. Ledger normalization
 5. Deduplication

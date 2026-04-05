@@ -2,7 +2,7 @@
 
 This document defines the operational workflows for Fundalo's three data-ingestion paths:
 
-1. Venmo CSV upload
+1. Manual cash entry
 2. Plaid bank connection and Zelle detection
 3. Receipt upload and evidence linking
 
@@ -21,56 +21,49 @@ Plaid sends a webhook indicating new transaction updates are available.
 3. System-triggered
 The backend runs normalization, deduplication, snapshot generation, or score refresh after ingestion succeeds.
 
-## Venmo CSV workflow
+## Manual cash workflow
 
 ### User story
 
-The owner exports a statement from Venmo and uploads it to Fundalo to add payment-app activity to the business ledger.
+The owner records a cash sale or expense that does not appear cleanly in the bank feed so Fundalo can include it in the business ledger.
 
 ### Trigger
 
 User action in the frontend:
 
-1. Owner clicks `Upload Venmo statement`
-2. Owner selects a CSV file downloaded from Venmo
-3. Frontend sends `multipart/form-data` to `POST /api/ingest/venmo-csv`
+1. Owner clicks `Add cash transaction`
+2. Owner enters date, amount, direction, and description
+3. Frontend sends JSON to `POST /api/ingest/manual-transaction`
 
 ### Flow
 
 ```mermaid
 flowchart TD
-    U1["Owner uploads Venmo CSV"] --> F1["Frontend file input"]
-    F1 --> A1["POST /api/ingest/venmo-csv"]
-    A1 --> P1["Parse CSV rows
-Date, ID, Type, Status, Note, From, To, Amount"]
-    P1 --> R1["Insert source rows into raw_transactions"]
-    R1 --> N1["Normalize rows into ledger_transactions"]
-    N1 --> D1["Deduplicate against Plaid-origin rows
-Same absolute amount
-Date within +/- 1 day"]
+    U1["Owner submits cash transaction"] --> A1["POST /api/ingest/manual-transaction"]
+    A1 --> R1["Insert source row into raw_transactions"]
+    R1 --> N1["Normalize row into ledger_transactions"]
+    N1 --> D1["Optional duplicate review against Plaid-origin rows"]
     D1 --> S1["Refresh monthly snapshots and score inputs"]
-    S1 --> V1["Owner sees imported rows, duplicate flags, and updated cash flow"]
+    S1 --> V1["Owner sees updated cash flow and transaction history"]
 ```
 
 ### Backend steps
 
-1. Validate file type and parse CSV
-2. Reject empty or malformed rows
-3. Insert each row into `raw_transactions` with `source = venmo_csv`
-4. Map each row into canonical ledger fields
-5. Check for Plaid overlap
-6. Insert normalized rows into `ledger_transactions`
-7. Mark `is_duplicate = true` if a Plaid match exists
-8. Recompute snapshots or queue recomputation
+1. Validate required fields
+2. Reject zero-value or malformed entries
+3. Insert the row into `raw_transactions` with `source = cash_manual`
+4. Map the row into canonical ledger fields
+5. Check for obvious Plaid overlap if needed
+6. Insert normalized row into `ledger_transactions`
+7. Recompute snapshots or queue recomputation
 
 ### User-visible result
 
 The owner sees:
 
-1. Number of rows imported
-2. Rows flagged as duplicates
-3. Updated revenue and expense view
-4. Updated Fondo score inputs if the upload changes the last 6 months
+1. The new cash transaction in the ledger
+2. Updated revenue and expense view
+3. Updated Fondo score inputs if the entry changes the last 6 months
 
 ## Plaid bank and Zelle workflow
 
@@ -105,7 +98,7 @@ item_id, institution_id, cursor pointer"]
     T1 --> A1["POST /api/ingest/plaid-sync"]
     A1 --> P2["Call Plaid /transactions/sync"]
     P2 --> R1["Insert source rows into raw_transactions"]
-    R1 --> N1["Detect Zelle, Venmo, transfer patterns"]
+    R1 --> N1["Detect Zelle and transfer patterns"]
     N1 --> L1["Normalize into ledger_transactions"]
     L1 --> S1["Refresh monthly snapshots and score inputs"]
     S1 --> V1["Owner sees connected account and imported bank history"]
@@ -221,8 +214,8 @@ The bank officer sees:
 
 Recommended build order:
 
-1. Venmo CSV workflow
-2. Plaid connect and sync workflow
+1. Plaid connect and sync workflow
+2. Manual cash workflow
 3. Receipt evidence workflow
 
 This order keeps the core ledger path simple while still preserving the evidence layer for later integration.

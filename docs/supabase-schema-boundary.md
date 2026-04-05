@@ -6,7 +6,7 @@ This document defines the first database boundary for Fundalo before SQL impleme
 
 The first version of Fundalo should treat:
 
-1. `Plaid + Venmo + manual cash` as the core ledger ingestion path
+1. `Plaid + manual cash` as the core ledger ingestion path
 2. `Receipts` as a supporting evidence layer
 
 That means the unified ledger must work even if no receipts are uploaded.
@@ -60,8 +60,7 @@ Key fields:
 Allowed `source` values:
 
 1. `plaid`
-2. `venmo_csv`
-3. `cash_manual`
+2. `cash_manual`
 
 ### `ledger_transactions`
 
@@ -166,7 +165,7 @@ Key fields:
 ## Why this boundary matters
 
 1. Core ledger remains simple and testable.
-2. Plaid and Venmo can be implemented first without blocking on OCR.
+2. Plaid can be implemented first without blocking on OCR.
 3. Receipts still remain available for cash-only expenses and underwriting support.
 4. The bank officer report can show evidence without making evidence mandatory for score generation.
 

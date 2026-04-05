@@ -6,10 +6,9 @@ flowchart TD
         A1["Plaid bank feed
 Initial connect + ongoing sync
 Zelle inferred from bank transaction text and counterparties"] --> B1["raw_transactions"]
-        A2["Venmo CSV upload
-Manual statement import
-Recommended monthly or quarterly upload"] --> B1
-        A3["Manual cash entry"] --> B1
+        A3["Manual cash entry
+Fallback for cash-only activity
+Recommended same day or weekly"] --> B1
         B1 --> D1["Normalize + categorize + dedupe"]
         D1 --> B4["ledger_transactions"]
         B4 --> E1["monthly_financial_snapshots (P&L, cash flow, trends)"]
