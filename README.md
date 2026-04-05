@@ -8,6 +8,13 @@ The current app does four core things:
 - lets the user manually add cash, Venmo, and Zelle transactions that may not appear in the bank feed
 - analyzes all transactions to separate likely business activity from personal activity and produce a lender-facing score and report
 
+## Project Docs
+
+- [Fundalo architecture flow](./docs/architecture-flow.md)
+- [Fundalo ingestion engine](./docs/ingestion-engine.md)
+- [Fundalo user flows](./docs/user-flows.md)
+- [Fundalo Supabase schema boundary](./docs/supabase-schema-boundary.md)
+
 ## Product Goal
 
 The problem Fundalo is trying to solve is not just "show transactions." The real goal is to turn messy financial behavior into a usable underwriting signal.
