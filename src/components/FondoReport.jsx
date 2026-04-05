@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { buildNarrative } from '../lib/classifier.js'
 import { estimateAssets } from '../lib/api.js'
+import { buildOpportunityRecommendations } from '../lib/opportunities.js'
 import styles from './FondoReport.module.css'
 
 function getFundoRating(score) {
@@ -29,6 +30,12 @@ export default function FondoReport({ profile, report, classified, lang, setLang
   const isEs = lang === 'es'
   const assetList = Array.isArray(valuedAssets) ? valuedAssets : []
   const totalEstimatedAssetValue = profile.totalEstimatedAssetValue || assetList.reduce((sum, asset) => sum + (asset.estimatedValue || 0), 0)
+  const recommendationProfile = {
+    ...profile,
+    assets: assetList,
+    totalEstimatedAssetValue,
+  }
+  const recommendations = buildOpportunityRecommendations(recommendationProfile, report, lang)
   const factorRows = [
     { label: isEs ? 'Volatilidad mensual de ingresos' : 'Monthly revenue volatility', val: `${report.factorSummary?.revenueVolatilityPercent || 0}%` },
     { label: isEs ? 'Margen promedio' : 'Average margin', val: `${report.factorSummary?.marginPercent || 0}%` },
@@ -133,6 +140,52 @@ export default function FondoReport({ profile, report, classified, lang, setLang
             {narrative.split('\n').filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
           </div>
         </div>
+
+        {recommendations.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>{isEs ? 'OPORTUNIDADES RECOMENDADAS' : 'RECOMMENDED OPPORTUNITIES'}</div>
+            <div className={styles.opportunityIntro}>
+              {isEs
+                ? 'Estas oportunidades se ordenan segun el Fundo report actual: puntaje, flujo, mezcla de transacciones, etapa del negocio y activos detectados.'
+                : 'These opportunities are ranked from the current Fundo report: score, cash flow, transaction mix, business stage, and detected assets.'}
+            </div>
+            <div className={styles.opportunityGrid}>
+              {recommendations.map((item) => (
+                <div key={item.id} className={styles.opportunityCard}>
+                  <div className={styles.opportunityTop}>
+                    <div>
+                      <div className={styles.opportunityType}>
+                        {item.type === 'grant'
+                          ? (isEs ? 'Subvencion' : 'Grant')
+                          : item.type === 'loan'
+                            ? (isEs ? 'Prestamo' : 'Loan')
+                            : (isEs ? 'Apoyo' : 'Support')}
+                      </div>
+                      <div className={styles.opportunityTitle}>{item.titleLocalized}</div>
+                      <div className={styles.opportunityProvider}>{item.provider}</div>
+                    </div>
+                  </div>
+                  <p className={styles.opportunitySummary}>{item.summaryLocalized}</p>
+                  {item.reasons.length > 0 && (
+                    <div className={styles.reasonsList}>
+                      {item.reasons.map((reason) => (
+                        <div key={reason} className={styles.reasonPill}>{reason}</div>
+                      ))}
+                    </div>
+                  )}
+                  <a
+                    className={styles.opportunityLink}
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {isEs ? 'Ver oportunidad oficial' : 'View official opportunity'}
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className={styles.twoCol}>
           <div className={styles.section}>

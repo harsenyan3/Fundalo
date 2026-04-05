@@ -224,6 +224,11 @@ function classifyTransactionWithContext(tx, context) {
     reasons.push({ weight, label })
   }
 
+  if (tx.type === 'zelle') {
+    isGhost = true
+    reasons.push({ weight: 16, label: 'Zelle activity has limited documentation compared with card or ACH rails' })
+  }
+
   if (description.includes('atm') || description.includes('cash withdrawal') || tx.type === 'cash') {
     isGhost = true
     reasons.push({ weight: 18, label: 'Cash movement with limited digital audit trail' })

@@ -122,6 +122,103 @@
 .narrative { font-size: 14px; line-height: 1.8; color: var(--text-secondary); font-weight: 500; }
 .narrative p + p { margin-top: 1rem; }
 
+.opportunityIntro {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  max-width: 700px;
+}
+
+.opportunityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.opportunityCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.opportunityTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.opportunityType {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.opportunityTitle {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.opportunityProvider {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.opportunitySummary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.reasonsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reasonPill {
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.opportunityLink {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.opportunityLink:hover {
+  opacity: 0.9;
+}
+
 .narrativeLoading {
   display: flex; flex-direction: column; align-items: center;
   padding: 2rem; gap: 12px; color: var(--text-muted);
@@ -144,6 +241,7 @@
 .twoCol {
   display: grid; grid-template-columns: 1fr 1fr;
   border-top: 1px solid var(--border);
+  margin-top: 1rem;
 }
 
 .twoCol .section { border-top: none; }
@@ -268,7 +366,9 @@
   .twoCol { grid-template-columns: 1fr; }
   .twoCol .section:first-child { border-right: none; border-bottom: 1px solid var(--border); }
   .evidenceGrid { grid-template-columns: repeat(2, 1fr); }
+  .opportunityGrid { grid-template-columns: 1fr; }
   .reportHeader { padding: 1.5rem; }
   .ratingSection { margin: 1.5rem; }
   .section { padding: 0 1.5rem 1.5rem; }
+  .opportunityTop { flex-direction: column; }
 }

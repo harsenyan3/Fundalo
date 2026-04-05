@@ -75,6 +75,7 @@ function translateReason(reason, es) {
     'Counterparty matches the owner name': 'La contraparte coincide con el nombre del dueño',
     'Plaid categorized this inflow as income': 'Plaid clasifico este ingreso como ingreso de negocio',
     'Peer payment rail is common for informal business revenue': 'Este rail de pago es comun para ingresos de negocio informales',
+    'Zelle activity has limited documentation compared with card or ACH rails': 'La actividad por Zelle tiene menos documentacion que pagos por tarjeta o ACH',
     'Amount fits the expected service ticket size': 'El monto coincide con el precio esperado del servicio',
     'Repeated inflows from this counterparty suggest a client relationship': 'Ingresos repetidos de esta contraparte sugieren una relacion con cliente',
     'Looks like an internal transfer rather than customer revenue': 'Parece una transferencia interna y no ingreso de cliente',
@@ -315,7 +316,10 @@ export default function Dashboard({ profile, lang, setLang, onContinue, onBack }
         ) : (
         <div className={styles.txList}>
           {filtered.map(tx => (
-            <div key={tx.id} className={`${styles.txRow} ${tx.isGhost ? styles.txGhost : ''}`}>
+            <div
+              key={tx.id}
+              className={`${styles.txRow} ${tx.isGhost ? styles.txGhost : ''} ${tx.classification === 'flagged' ? styles.txFlagged : ''}`}
+            >
               <div className={styles.txLeft}>
                 <div className={styles.txDesc}>
                   {tx.description}
@@ -330,23 +334,24 @@ export default function Dashboard({ profile, lang, setLang, onContinue, onBack }
                   {tx.direction === 'in' ? '+' : '-'}${Math.abs(tx.amount).toLocaleString()}
                 </div>
                 <div className={styles.txActions}>
-                  {tx.isGhost
-                    ? <span className="tag tag-ghost">{es ? 'Fantasma' : 'Ghost'}</span>
-                    : tx.classification === 'flagged'
-                      ? (
-                        <div className={styles.flagActions}>
-                          <button className={styles.confirmBiz} onClick={() => override(tx.id, 'business')}>
-                            {es ? 'Negocio' : 'Business'}
-                          </button>
-                          <button className={styles.confirmPersonal} onClick={() => override(tx.id, 'personal')}>
-                            {es ? 'Personal' : 'Personal'}
-                          </button>
-                        </div>
-                      )
+                  <div className={styles.txBadges}>
+                    {tx.classification === 'flagged'
+                      ? <span className="tag tag-flagged">{es ? 'Revisar' : 'Review'}</span>
                       : <span className={`tag tag-${tx.classification}`}>
                           {tx.classification === 'business' ? (es ? 'Negocio' : 'Business') : 'Personal'}
-                        </span>
-                  }
+                        </span>}
+                    {tx.isGhost && <span className="tag tag-ghost">{es ? 'Fantasma' : 'Ghost'}</span>}
+                  </div>
+                  {tx.classification === 'flagged' && (
+                    <div className={styles.flagActions}>
+                      <button className={styles.confirmBiz} onClick={() => override(tx.id, 'business')}>
+                        {es ? 'Negocio' : 'Business'}
+                      </button>
+                      <button className={styles.confirmPersonal} onClick={() => override(tx.id, 'personal')}>
+                        {es ? 'Personal' : 'Personal'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -356,7 +361,7 @@ export default function Dashboard({ profile, lang, setLang, onContinue, onBack }
       </div>
 
       <button className="btn-primary" onClick={() => onContinue(report, classified)} style={{ marginTop: '2rem' }}>
-        {es ? 'Generar mi Fundo Rating →' : 'Generate my Fundo Rating →'}
+        {es ? 'Ver mi Fundo Report →' : 'See your Fundo Report →'}
       </button>
     </div>
   )
