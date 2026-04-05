@@ -57,6 +57,8 @@ export default function App() {
     return (
       <Dashboard
         profile={profile}
+        lang={lang}
+        setLang={setLang}
         onContinue={handleDashboardContinue}
       />
     )

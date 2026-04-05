@@ -1,25 +1,75 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { classifyAll, buildCashflowReport } from '../lib/classifier.js'
+import { analyzePlaidAccount } from '../lib/api.js'
+import { openPlaidLink } from '../lib/plaidLink.js'
 import { MOCK_TRANSACTIONS, KNOWN_BUSINESS_ACCOUNTS } from '../data/mockTransactions.js'
 import styles from './Dashboard.module.css'
 
 const FILTERS = ['all', 'business', 'personal', 'flagged', 'ghost']
 
-export default function Dashboard({ profile, onContinue }) {
+function buildAnalysisProfile(profile) {
+  const {
+    prefetchedAnalysis,
+    plaidMeta,
+    assetInput,
+    manualType,
+    manualDirection,
+    manualAmount,
+    manualDate,
+    manualDescription,
+    ...rest
+  } = profile
+
+  return rest
+}
+
+function getInitialSource(profile) {
+  if (profile?.prefetchedAnalysis?.classified) return 'plaid'
+  if (Array.isArray(profile?.manualTransactions) && profile.manualTransactions.length > 0) return 'manual'
+  return 'demo'
+}
+
+function applyOverrides(transactions, overrides) {
+  return transactions.map((tx) =>
+    overrides[tx.id]
+      ? {
+          ...tx,
+          classification: overrides[tx.id],
+          confidence: 100,
+          reason: 'Manually confirmed',
+        }
+      : tx
+  )
+}
+
+export default function Dashboard({ profile, lang, setLang, onContinue }) {
   const [filter, setFilter] = useState('all')
-  const [lang, setLang] = useState('en')
   const [overrides, setOverrides] = useState({})
+  const [source, setSource] = useState(() => getInitialSource(profile))
+  const [plaidSessionId, setPlaidSessionId] = useState(profile?.plaidSessionId || null)
+  const [plaidAnalysis, setPlaidAnalysis] = useState(profile?.prefetchedAnalysis || null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncError, setSyncError] = useState('')
   const es = lang === 'es'
 
-  const classified = useMemo(() => {
-    const base = classifyAll(MOCK_TRANSACTIONS, profile)
-    return base.map(tx => overrides[tx.id]
-      ? { ...tx, classification: overrides[tx.id], confidence: 100, reason: 'Manually confirmed' }
-      : tx
-    )
-  }, [profile, overrides])
+  const baseClassified = useMemo(() => {
+    if (source === 'plaid' && plaidAnalysis?.classified) {
+      return plaidAnalysis.classified
+    }
 
-  const report = useMemo(() => buildCashflowReport(classified), [classified])
+    if (source === 'manual' && Array.isArray(profile?.manualTransactions) && profile.manualTransactions.length > 0) {
+      return classifyAll(profile.manualTransactions, profile)
+    }
+
+    return classifyAll(MOCK_TRANSACTIONS, profile)
+  }, [plaidAnalysis, profile, source])
+
+  const classified = useMemo(
+    () => applyOverrides(baseClassified, overrides),
+    [baseClassified, overrides]
+  )
+
+  const report = useMemo(() => buildCashflowReport(classified, profile), [classified, profile])
 
   const filtered = filter === 'ghost'
     ? classified.filter(t => t.isGhost)
@@ -31,8 +81,57 @@ export default function Dashboard({ profile, onContinue }) {
     setOverrides(p => ({ ...p, [id]: classification }))
   }
 
+  useEffect(() => {
+    const manualCount = Array.isArray(profile?.manualTransactions) ? profile.manualTransactions.length : 0
+    const analyzedManualCount = plaidAnalysis?.meta?.manualTransactionCount || 0
+
+    if (
+      profile?.plaidSessionId &&
+      (!plaidAnalysis?.classified || manualCount !== analyzedManualCount)
+    ) {
+      syncPlaidAnalysis(profile.plaidSessionId)
+    }
+  }, [plaidAnalysis, profile?.manualTransactions, profile?.plaidSessionId])
+
+  async function syncPlaidAnalysis(sessionId = plaidSessionId) {
+    if (!sessionId) return
+
+    setSyncError('')
+    setSyncing(true)
+
+    try {
+      const result = await analyzePlaidAccount({ sessionId, profile: buildAnalysisProfile(profile), days: 180 })
+      setPlaidSessionId(sessionId)
+      setPlaidAnalysis(result)
+      setOverrides({})
+      setSource('plaid')
+    } catch (error) {
+      setSyncError(error.message)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  async function handleConnectPlaid() {
+    setSyncError('')
+    setSyncing(true)
+
+    try {
+      const exchange = await openPlaidLink(profile)
+      if (!exchange?.sessionId) {
+        setSyncing(false)
+        return
+      }
+      await syncPlaidAnalysis(exchange.sessionId)
+    } catch (error) {
+      setSyncError(error.message)
+      setSyncing(false)
+    }
+  }
+
   const isKnownBiz = (desc) =>
-    KNOWN_BUSINESS_ACCOUNTS.some(a => desc.toLowerCase().includes(a.toLowerCase()))
+    KNOWN_BUSINESS_ACCOUNTS.some(a => desc.toLowerCase().includes(a.toLowerCase())) ||
+    report.verifiedRelationships.some(a => desc.toLowerCase().includes(a.name.toLowerCase()))
 
   return (
     <div className={styles.wrapper}>
@@ -51,7 +150,7 @@ export default function Dashboard({ profile, onContinue }) {
         <div>
           <h1 className={styles.ownerName}>{profile.businessName || profile.ownerName}</h1>
           <p className={styles.ownerSub}>
-            {es ? 'Análisis de flujo de caja' : 'Cash flow analysis'} · {es ? 'Últimos 60 días' : 'Last 60 days'}
+            {es ? 'Análisis de flujo de caja' : 'Cash flow analysis'} · {es ? 'Últimos 180 días' : 'Last 180 days'}
           </p>
         </div>
         <div className={styles.scorePill}>
@@ -59,6 +158,52 @@ export default function Dashboard({ profile, onContinue }) {
           <span className={styles.scoreLabel}>{es ? 'Puntaje' : 'Score'}</span>
         </div>
       </div>
+
+      <div className={styles.loanBox} style={{ marginBottom: '1rem', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <div className={styles.loanLabel}>{es ? 'Fuente de datos' : 'Data source'}</div>
+          <div className={styles.loanRange} style={{ fontSize: '1.1rem' }}>
+            {source === 'plaid'
+              ? (es ? 'Cuenta conectada con Plaid' : 'Connected account via Plaid')
+              : source === 'manual'
+                ? (es ? 'Entradas manuales de efectivo y Venmo' : 'Manual cash and Venmo entries')
+              : (es ? 'Datos demo de Rosa' : "Rosa's demo data")}
+          </div>
+        </div>
+        <div className={styles.txActions} style={{ marginLeft: 'auto', gap: '.75rem' }}>
+          <button className="btn-primary" onClick={handleConnectPlaid} disabled={syncing}>
+            {syncing
+              ? (es ? 'Conectando...' : 'Connecting...')
+              : source === 'plaid'
+                ? (es ? 'Conectar otra cuenta' : 'Connect another account')
+                : 'Connect Plaid'}
+          </button>
+          {plaidSessionId && (
+            <button className={styles.filterBtn} onClick={() => syncPlaidAnalysis()} disabled={syncing}>
+              {es ? 'Actualizar transacciones' : 'Refresh transactions'}
+            </button>
+          )}
+          {source === 'plaid' && (
+            <button className={styles.filterBtn} onClick={() => setSource('demo')}>
+              {es ? 'Ver demo' : 'View demo'}
+            </button>
+          )}
+          {source === 'manual' && (
+            <button className={styles.filterBtn} onClick={() => setSource('demo')}>
+              {es ? 'Ver demo' : 'View demo'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {syncError && (
+        <div className={styles.loanBox} style={{ marginBottom: '1rem', borderColor: 'rgba(220,38,38,.18)', background: '#fff5f5' }}>
+          <div>
+            <div className={styles.loanLabel} style={{ color: '#b91c1c' }}>{es ? 'Error de conexión' : 'Connection error'}</div>
+            <div className={styles.metricSub} style={{ color: '#7f1d1d' }}>{syncError}</div>
+          </div>
+        </div>
+      )}
 
       <div className={styles.metricsGrid}>
         <div className={styles.metricCard}>

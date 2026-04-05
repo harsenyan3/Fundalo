@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "api": "node server/index.js",
     "dev": "vite",
+    "dev:full": "node scripts/dev.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
