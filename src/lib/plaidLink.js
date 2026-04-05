@@ -47,7 +47,6 @@ export async function openPlaidLink(profile) {
           reject(new Error(error.display_message || error.error_message || 'Plaid Link exited early'))
           return
         }
-
         resolve(null)
       },
     })

@@ -1,16 +1,23 @@
 import { useState } from 'react'
+import { AuthProvider, useAuth } from './lib/auth'
 import Landing from './components/Landing'
+import Auth from './components/Auth'
+import Account from './components/Account'
 import Intake from './components/Intake'
 import Dashboard from './components/Dashboard'
 import FondoReport from './components/FondoReport'
-import { MOCK_PROFILE } from './data/mockTransactions'
 
-export default function App() {
+function AppInner() {
+  const { user, saveUserData } = useAuth()
   const [screen, setScreen] = useState('landing')
   const [lang, setLang] = useState('en')
   const [profile, setProfile] = useState(null)
   const [report, setReport] = useState(null)
   const [classified, setClassified] = useState(null)
+
+  function handleAuthSuccess(authUser) {
+    setScreen(authUser ? 'account' : 'intake')
+  }
 
   function handleIntakeComplete(formData) {
     setProfile(formData)
@@ -20,11 +27,42 @@ export default function App() {
   function handleDashboardContinue(reportData, classifiedTx) {
     setReport(reportData)
     setClassified(classifiedTx)
+    if (user) saveUserData(profile, reportData, classifiedTx)
+    setScreen('report')
+  }
+
+  function handleViewSavedReport(savedProfile, savedReport, savedClassified) {
+    setProfile(savedProfile)
+    setReport(savedReport)
+    setClassified(savedClassified)
     setScreen('report')
   }
 
   if (screen === 'landing') {
-    return <Landing onStart={() => setScreen('intake')} lang={lang} setLang={setLang} />
+    return (
+      <Landing
+        onStart={() => setScreen('auth')}
+        lang={lang}
+        setLang={setLang}
+        onAccount={() => user ? setScreen('account') : setScreen('auth')}
+        user={user}
+      />
+    )
+  }
+
+  if (screen === 'auth') {
+    return <Auth onSuccess={handleAuthSuccess} lang={lang} onBack={() => setScreen('landing')} />
+  }
+
+  if (screen === 'account') {
+    return (
+      <Account
+        lang={lang}
+        onStartNew={() => setScreen('intake')}
+        onViewReport={handleViewSavedReport}
+        onBack={() => setScreen('landing')}
+      />
+    )
   }
 
   if (screen === 'intake') {
@@ -32,23 +70,10 @@ export default function App() {
       <div>
         <Intake
           onComplete={handleIntakeComplete}
-          onBack={() => setScreen('landing')}
+          onBack={() => setScreen(user ? 'account' : 'landing')}
           lang={lang}
           setLang={setLang}
         />
-        <div style={{ textAlign: 'center', paddingBottom: '2rem' }}>
-          <button
-            onClick={() => { setProfile(MOCK_PROFILE); setScreen('dashboard') }}
-            style={{
-              background: 'none', border: 'none',
-              color: 'var(--text-muted)', fontSize: 12,
-              cursor: 'pointer', textDecoration: 'underline',
-              fontFamily: 'var(--font)', fontWeight: 600
-            }}
-          >
-            {lang === 'en' ? "Skip — use Rosa's demo data" : "Saltar — usar datos de Rosa"}
-          </button>
-        </div>
       </div>
     )
   }
@@ -60,6 +85,7 @@ export default function App() {
         lang={lang}
         setLang={setLang}
         onContinue={handleDashboardContinue}
+        onBack={() => setScreen('intake')}
       />
     )
   }
@@ -75,4 +101,12 @@ export default function App() {
       />
     )
   }
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
+  )
 }

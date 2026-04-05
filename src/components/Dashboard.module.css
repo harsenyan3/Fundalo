@@ -45,3 +45,18 @@
 .flagActions { display: flex; gap: 5px; }
 .confirmBiz { background: var(--growth-light); color: var(--growth); border: 1px solid #a7f3d0; border-radius: 8px; padding: 4px 10px; font-size: 11px; font-weight: 800; cursor: pointer; }
 .confirmPersonal { background: var(--danger-light); color: var(--danger); border: 1px solid #fecaca; border-radius: 8px; padding: 4px 10px; font-size: 11px; font-weight: 800; cursor: pointer; }
+
+.topLeft { display: flex; align-items: center; gap: 16px; }
+.backBtn { background: none; border: none; color: var(--text-muted); font-size: 13px; font-weight: 700; cursor: pointer; padding: 6px 10px; border-radius: var(--radius-full); transition: all 0.15s; font-family: var(--font); }
+.backBtn:hover { background: var(--bg-surface); color: var(--navy); }
+
+.plaidBanner { background: #eff4ff; border: 1.5px solid #bfdbfe; border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.plaidLeft { display: flex; align-items: center; gap: 12px; }
+.plaidIcon { font-size: 22px; flex-shrink: 0; }
+.plaidTitle { font-size: 14px; font-weight: 800; color: var(--navy); margin-bottom: 2px; }
+.plaidSub { font-size: 12px; color: #3b82f6; font-weight: 500; }
+.plaidBtn { background: var(--navy); color: #fff; border: none; border-radius: var(--radius-full); padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; white-space: nowrap; flex-shrink: 0; font-family: var(--font); }
+.plaidBtn:hover { background: var(--navy-light); }
+.plaidBtn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.plaidSuccess { background: var(--teal-light); border: 1.5px solid var(--teal-border); border-radius: var(--radius-lg); padding: 0.875rem 1.25rem; margin-bottom: 1.25rem; font-size: 13px; font-weight: 700; color: var(--teal-hover); }

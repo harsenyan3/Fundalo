@@ -186,7 +186,6 @@ function buildContext(transactions, profile) {
     businessName: safeLower(profile?.businessName),
     accountType: profile?.accountType || 'shared',
     commonExpenses: (profile?.commonExpenseLabels || []).map(safeLower),
-    paymentFormats: new Set((profile?.paymentFormats || []).map(safeLower)),
     industryKeywords: getIndustryKeywords(profile),
     counterpartyStats,
   }
@@ -331,10 +330,6 @@ function classifyTransactionWithContext(tx, context) {
     confidence,
     reason,
     isGhost,
-    scores: {
-      business: businessScore,
-      personal: personalScore,
-    },
   }
 }
 
@@ -343,11 +338,9 @@ export function classifyAll(transactions, profile = {}) {
     if (tx.source === 'plaid' && tx.original?.transaction_id) {
       return normalizeTransaction(tx.original, 'plaid')
     }
-
     if (tx.source === 'plaid' && tx.accountId) {
       return tx
     }
-
     return normalizeTransaction(tx, 'manual')
   })
   const context = buildContext(normalized, profile)
@@ -379,15 +372,8 @@ function buildMonthlyBuckets(classified) {
   classified.forEach((tx) => {
     const key = monthKey(tx.date)
     const current = buckets.get(key) || { month: key, revenue: 0, expenses: 0 }
-
-    if (tx.classification === 'business' && tx.direction === 'in') {
-      current.revenue += Math.abs(tx.amount)
-    }
-
-    if (tx.classification === 'business' && tx.direction === 'out') {
-      current.expenses += Math.abs(tx.amount)
-    }
-
+    if (tx.classification === 'business' && tx.direction === 'in') current.revenue += Math.abs(tx.amount)
+    if (tx.classification === 'business' && tx.direction === 'out') current.expenses += Math.abs(tx.amount)
     buckets.set(key, current)
   })
 
@@ -401,13 +387,11 @@ function buildVerifiedRelationships(classified) {
   incomingBusiness.forEach((tx) => {
     const key = slugCounterparty(tx.merchantName || tx.counterparties?.[0] || tx.description)
     if (!key) return
-
     const current = grouped.get(key) || {
       name: titleCase(tx.merchantName || tx.counterparties?.[0] || tx.description),
       count: 0,
       total: 0,
     }
-
     current.count += 1
     current.total += Math.abs(tx.amount)
     grouped.set(key, current)
@@ -429,7 +413,6 @@ export function buildCashflowReport(classified, profile = {}) {
   const bizExpenses = sum(business.filter((t) => t.direction === 'out'), (t) => Math.abs(t.amount))
   const personalOutflows = sum(personal.filter((t) => t.direction === 'out'), (t) => Math.abs(t.amount))
   const ghostTotal = sum(ghost, (t) => Math.abs(t.amount))
-  const totalIn = sum(classified.filter((t) => t.direction === 'in'), (t) => Math.abs(t.amount))
   const totalOut = sum(classified.filter((t) => t.direction === 'out'), (t) => Math.abs(t.amount))
   const netCashflow = bizRevenue - bizExpenses
 

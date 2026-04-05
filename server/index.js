@@ -42,7 +42,14 @@ const POLL_DELAY_MS = 2500
 
 const sessions = new Map()
 
+function writeCorsHeaders(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+}
+
 function json(res, statusCode, data) {
+  writeCorsHeaders(res)
   res.writeHead(statusCode, {
     'Content-Type': 'application/json',
   })
@@ -271,6 +278,13 @@ async function handleAnalyze(req, res) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host}`)
+
+    if (req.method === 'OPTIONS') {
+      writeCorsHeaders(res)
+      res.writeHead(204)
+      res.end()
+      return
+    }
 
     if (req.method === 'GET' && url.pathname === '/api/health') {
       return json(res, 200, {
