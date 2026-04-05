@@ -2,6 +2,7 @@ import http from 'node:http'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import nodemailer from 'nodemailer'
 import { classifyAll, buildCashflowReport, normalizeTransaction } from '../src/lib/analysis.js'
 
 function loadDotEnv() {
@@ -32,6 +33,7 @@ function loadDotEnv() {
 loadDotEnv()
 
 const PORT = Number(process.env.PORT || 3001)
+const APP_URL = process.env.APP_URL || 'http://localhost:5173'
 const PLAID_BASE_URL = process.env.PLAID_ENV === 'production'
   ? 'https://production.plaid.com'
   : process.env.PLAID_ENV === 'development'
@@ -39,8 +41,118 @@ const PLAID_BASE_URL = process.env.PLAID_ENV === 'production'
     : 'https://sandbox.plaid.com'
 const POLL_RETRIES = 6
 const POLL_DELAY_MS = 2500
+const USERS_DIR = path.resolve(process.cwd(), 'server', 'data')
+const USERS_PATH = path.join(USERS_DIR, 'users.json')
 
 const sessions = new Map()
+let mailTransporter = null
+
+function ensureUsersFile() {
+  if (!fs.existsSync(USERS_DIR)) {
+    fs.mkdirSync(USERS_DIR, { recursive: true })
+  }
+
+  if (!fs.existsSync(USERS_PATH)) {
+    fs.writeFileSync(USERS_PATH, '[]\n', 'utf8')
+  }
+}
+
+function readUsers() {
+  ensureUsersFile()
+  try {
+    return JSON.parse(fs.readFileSync(USERS_PATH, 'utf8'))
+  } catch {
+    return []
+  }
+}
+
+function writeUsers(users) {
+  ensureUsersFile()
+  fs.writeFileSync(USERS_PATH, `${JSON.stringify(users, null, 2)}\n`, 'utf8')
+}
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase()
+}
+
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const hash = crypto.pbkdf2Sync(password, salt, 120000, 64, 'sha512').toString('hex')
+  return `${salt}:${hash}`
+}
+
+function verifyPassword(password, stored) {
+  const [salt, originalHash] = String(stored || '').split(':')
+  if (!salt || !originalHash) return false
+  const candidate = crypto.pbkdf2Sync(password, salt, 120000, 64, 'sha512').toString('hex')
+  return crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(originalHash, 'hex'))
+}
+
+function serializeUser(user) {
+  const {
+    passwordHash,
+    resetTokenHash,
+    resetTokenExpiresAt,
+    ...safeUser
+  } = user
+
+  return safeUser
+}
+
+function isEmailConfigured() {
+  return Boolean(
+    process.env.SMTP_HOST &&
+    process.env.SMTP_PORT &&
+    process.env.SMTP_USER &&
+    process.env.SMTP_PASS &&
+    process.env.MAIL_FROM
+  )
+}
+
+function getMailTransporter() {
+  if (!isEmailConfigured()) return null
+  if (!mailTransporter) {
+    mailTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true' || Number(process.env.SMTP_PORT) === 465,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    })
+  }
+
+  return mailTransporter
+}
+
+async function sendPasswordResetEmail({ email, name, resetLink }) {
+  const transporter = getMailTransporter()
+  if (!transporter) {
+    return false
+  }
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM,
+    to: email,
+    subject: 'Reset your Fundalo password',
+    text: [
+      `Hi ${name || 'there'},`,
+      '',
+      'We received a request to reset your Fundalo password.',
+      `Open this link to choose a new password: ${resetLink}`,
+      '',
+      'This link expires in 30 minutes. If you did not request it, you can ignore this email.',
+    ].join('\n'),
+    html: `
+      <p>Hi ${name || 'there'},</p>
+      <p>We received a request to reset your Fundalo password.</p>
+      <p><a href="${resetLink}">Open this link to choose a new password</a></p>
+      <p>This link expires in 30 minutes. If you did not request it, you can ignore this email.</p>
+    `,
+  })
+
+  return true
+}
 
 function writeCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -275,6 +387,165 @@ async function handleAnalyze(req, res) {
   })
 }
 
+async function handleRegister(req, res) {
+  const { email, password, name } = await readBody(req)
+  const normalizedEmail = normalizeEmail(email)
+  const trimmedName = String(name || '').trim()
+
+  if (!trimmedName) {
+    return json(res, 400, { error: 'Name is required' })
+  }
+
+  if (!normalizedEmail) {
+    return json(res, 400, { error: 'Email is required' })
+  }
+
+  if (String(password || '').length < 6) {
+    return json(res, 400, { error: 'Password must be at least 6 characters' })
+  }
+
+  const users = readUsers()
+  if (users.some((user) => user.email === normalizedEmail)) {
+    return json(res, 409, { error: 'An account with this email already exists' })
+  }
+
+  const user = {
+    id: crypto.randomUUID(),
+    email: normalizedEmail,
+    name: trimmedName,
+    createdAt: new Date().toISOString(),
+    passwordHash: hashPassword(password),
+    profile: null,
+    report: null,
+    classified: null,
+    lastUpdated: null,
+  }
+
+  users.push(user)
+  writeUsers(users)
+  return json(res, 200, { user: serializeUser(user) })
+}
+
+async function handleLogin(req, res) {
+  const { email, password } = await readBody(req)
+  const normalizedEmail = normalizeEmail(email)
+  const users = readUsers()
+  const user = users.find((entry) => entry.email === normalizedEmail)
+
+  if (!user || !verifyPassword(password, user.passwordHash)) {
+    return json(res, 401, { error: 'Incorrect email or password' })
+  }
+
+  return json(res, 200, { user: serializeUser(user) })
+}
+
+async function handleSaveUserData(req, res) {
+  const { userId, profile = null, report = null, classified = null } = await readBody(req)
+  if (!userId) {
+    return json(res, 400, { error: 'userId is required' })
+  }
+
+  const users = readUsers()
+  const index = users.findIndex((entry) => entry.id === userId)
+  if (index === -1) {
+    return json(res, 404, { error: 'User not found' })
+  }
+
+  const updatedUser = {
+    ...users[index],
+    profile,
+    report,
+    classified,
+    lastUpdated: new Date().toISOString(),
+  }
+
+  users[index] = updatedUser
+  writeUsers(users)
+  return json(res, 200, { user: serializeUser(updatedUser) })
+}
+
+async function handleForgotPassword(req, res) {
+  const { email } = await readBody(req)
+  const normalizedEmail = normalizeEmail(email)
+
+  if (!normalizedEmail) {
+    return json(res, 400, { error: 'Email is required' })
+  }
+
+  const users = readUsers()
+  const index = users.findIndex((entry) => entry.email === normalizedEmail)
+
+  if (index === -1) {
+    return json(res, 200, {
+      ok: true,
+      message: 'If an account exists for that email, a recovery link has been sent.',
+    })
+  }
+
+  const resetToken = crypto.randomBytes(32).toString('hex')
+  const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex')
+  const resetTokenExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+  const resetLink = `${APP_URL}/?resetToken=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(normalizedEmail)}`
+
+  users[index] = {
+    ...users[index],
+    resetTokenHash,
+    resetTokenExpiresAt,
+  }
+  writeUsers(users)
+
+  const emailSent = await sendPasswordResetEmail({
+    email: normalizedEmail,
+    name: users[index].name,
+    resetLink,
+  })
+
+  return json(res, 200, {
+    ok: true,
+    emailSent,
+    message: emailSent
+      ? 'Recovery email sent.'
+      : 'Recovery is ready, but SMTP is not configured yet.',
+    ...(emailSent ? {} : { previewUrl: resetLink }),
+  })
+}
+
+async function handleResetPassword(req, res) {
+  const { email, token, password } = await readBody(req)
+  const normalizedEmail = normalizeEmail(email)
+
+  if (!normalizedEmail || !token || String(password || '').length < 6) {
+    return json(res, 400, { error: 'Email, token, and a 6+ character password are required' })
+  }
+
+  const users = readUsers()
+  const index = users.findIndex((entry) => entry.email === normalizedEmail)
+  if (index === -1) {
+    return json(res, 400, { error: 'Reset link is invalid or expired' })
+  }
+
+  const user = users[index]
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+  const tokenValid = user.resetTokenHash && user.resetTokenHash === tokenHash
+  const tokenNotExpired = user.resetTokenExpiresAt && new Date(user.resetTokenExpiresAt) > new Date()
+
+  if (!tokenValid || !tokenNotExpired) {
+    return json(res, 400, { error: 'Reset link is invalid or expired' })
+  }
+
+  const updatedUser = {
+    ...user,
+    passwordHash: hashPassword(password),
+    resetTokenHash: null,
+    resetTokenExpiresAt: null,
+  }
+
+  users[index] = updatedUser
+  writeUsers(users)
+
+  return json(res, 200, { user: serializeUser(updatedUser) })
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host}`)
@@ -291,7 +562,28 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         plaidConfigured: isPlaidConfigured(),
         plaidEnv: process.env.PLAID_ENV || 'sandbox',
+        emailConfigured: isEmailConfigured(),
       })
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/register') {
+      return await handleRegister(req, res)
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+      return await handleLogin(req, res)
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/save-user-data') {
+      return await handleSaveUserData(req, res)
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/forgot-password') {
+      return await handleForgotPassword(req, res)
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/reset-password') {
+      return await handleResetPassword(req, res)
     }
 
     if (req.method === 'POST' && url.pathname === '/api/plaid/create-link-token') {

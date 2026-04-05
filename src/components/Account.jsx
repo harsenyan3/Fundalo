@@ -1,11 +1,11 @@
 import { useAuth } from '../lib/auth'
 import styles from './Account.module.css'
 
-function getFondoRating(score) {
+function getFundoRating(score) {
   if (!score) return null
   if (score >= 85) return { grade: 'FR-A', label: 'Lender Ready', color: '#2ec4a0', bg: '#e8faf5' }
   if (score >= 70) return { grade: 'FR-B', label: 'Creditworthy', color: '#1a2340', bg: '#eef1f6' }
-  if (score >= 55) return { grade: 'FR-C', label: 'Developing', color: '#d97706', bg: '#fffbeb' }
+  if (score >= 55) return { grade: 'FR-C', label: 'Emerging', color: '#d97706', bg: '#fffbeb' }
   if (score >= 40) return { grade: 'FR-D', label: 'Early Stage', color: '#ea580c', bg: '#fff7ed' }
   return { grade: 'FR-E', label: 'Needs History', color: '#dc2626', bg: '#fef2f2' }
 }
@@ -14,7 +14,7 @@ export default function Account({ lang, onStartNew, onViewReport, onBack }) {
   const { user, logout, getUserData } = useAuth()
   const es = lang === 'es'
   const data = getUserData()
-  const rating = data?.report ? getFondoRating(data.report.reliabilityScore) : null
+  const rating = data?.report ? getFundoRating(data.report.reliabilityScore) : null
 
   function handleLogout() {
     logout()
@@ -66,7 +66,7 @@ export default function Account({ lang, onStartNew, onViewReport, onBack }) {
               <div className={styles.ratingLeft}>
                 <div className={styles.ratingGrade} style={{ color: rating.color }}>{rating.grade}</div>
                 <div className={styles.ratingLabel} style={{ color: rating.color }}>{rating.label}</div>
-                <div className={styles.ratingDesc}>{es ? 'Tu Fondo Rating' : 'Your Fondo Rating'}</div>
+                <div className={styles.ratingDesc}>{es ? 'Tu Fundo Rating' : 'Your Fundo Rating'}</div>
               </div>
               <div className={styles.ratingStats}>
                 <div className={styles.stat}>
@@ -86,7 +86,7 @@ export default function Account({ lang, onStartNew, onViewReport, onBack }) {
 
             <div className={styles.actions}>
               <button className="btn-primary" onClick={() => onViewReport(data.profile, data.report, data.classified)}>
-                {es ? '📄 Ver mi Fondo Rating Report →' : '📄 View my Fondo Rating Report →'}
+                {es ? '📄 Ver mi Fundo Rating Report →' : '📄 View my Fundo Rating Report →'}
               </button>
               <button className="btn-ghost" onClick={onStartNew}>
                 {es ? '🔄 Actualizar mi información' : '🔄 Update my information'}
@@ -118,7 +118,7 @@ export default function Account({ lang, onStartNew, onViewReport, onBack }) {
           <div className={styles.empty}>
             <div className={styles.emptyIcon}>📊</div>
             <h2 className={styles.emptyTitle}>
-              {es ? 'Aún no tienes un Fondo Rating' : "You don't have a Fondo Rating yet"}
+              {es ? 'Aun no tienes un Fundo Rating' : "You don't have a Fundo Rating yet"}
             </h2>
             <p className={styles.emptyBody}>
               {es
@@ -126,7 +126,7 @@ export default function Account({ lang, onStartNew, onViewReport, onBack }) {
                 : 'Complete your profile and analyze your transactions to generate your credit report.'}
             </p>
             <button className="btn-primary" onClick={onStartNew} style={{ maxWidth: 320, margin: '0 auto' }}>
-              {es ? 'Generar mi Fondo Rating →' : 'Generate my Fondo Rating →'}
+              {es ? 'Generar mi Fundo Rating →' : 'Generate my Fundo Rating →'}
             </button>
           </div>
         )}

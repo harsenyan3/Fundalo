@@ -1,11 +1,11 @@
 # Fundalo
 
-Fundalo is a bilingual alternative-credit workflow for small businesses that do not have clean, traditional financial records. It is designed for operators who get paid through mixed channels like bank deposits, Zelle, Venmo, and cash, and need a lender-friendly way to show business performance even when personal and business activity are commingled.
+Fundalo is a bilingual alternative-credit workflow for small businesses that do not have clean, traditional financial records. It is designed for operators who get paid through mixed channels like bank deposits, Zelle, and cash, and need a lender-friendly way to show business performance even when personal and business activity are commingled.
 
 The current app does four core things:
 - collects a business profile through a guided intake
 - connects a bank account through Plaid during intake
-- lets the user manually add cash, Venmo, and Zelle transactions that may not appear in the bank feed
+- lets the user manually add cash and Zelle transactions that may not appear in the bank feed
 - analyzes all transactions to separate likely business activity from personal activity and produce a lender-facing score and report
 
 ## Product Goal
@@ -14,7 +14,7 @@ The problem Fundalo is trying to solve is not just "show transactions." The real
 
 Many small businesses, especially early-stage or informal operators, have some combination of these issues:
 - they run the business out of a personal checking account
-- they receive payments through peer-to-peer rails like Zelle and Venmo
+- they receive payments through peer-to-peer rails like Zelle
 - some revenue is handled in cash
 - business expenses are mixed with household expenses
 - there is not enough formal accounting history for a traditional bank workflow
@@ -32,7 +32,7 @@ This repo currently contains:
 The experience today is:
 1. User completes intake details about the business.
 2. On the "How you get paid" step, the user can connect Plaid.
-3. On that same step, the user can manually add missing cash, Venmo, or Zelle transactions.
+3. On that same step, the user can manually add missing cash or Zelle transactions.
 4. The backend fetches Plaid transactions, merges them with manual entries, classifies activity, and computes report metrics.
 5. The dashboard opens with analyzed data already loaded.
 6. The report view turns the analysis into an owner-facing and lender-facing summary.
@@ -97,12 +97,21 @@ Create a local `.env` file with:
 PLAID_CLIENT_ID=...
 PLAID_SECRET=...
 PLAID_ENV=sandbox
+APP_URL=http://localhost:5173
+SMTP_HOST=...
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASS=...
+SMTP_SECURE=false
+MAIL_FROM=...
 PORT=3001
 ```
 
 Notes:
 - `PLAID_CLIENT_ID` and `PLAID_SECRET` are your app-level Plaid credentials from the Plaid Dashboard.
 - `PLAID_ENV=sandbox` is the correct starting point for local development.
+- `APP_URL` is used to build password-reset links.
+- `SMTP_*` and `MAIL_FROM` enable real recovery emails. If they are omitted, the app still generates reset links locally for testing.
 - the backend now reads `.env` directly at startup, so shell-exporting vars is not required
 
 ## Plaid Flow
@@ -121,18 +130,17 @@ Fundalo uses the standard Plaid Link flow:
 The user data comes from the person connecting their account inside Link.
 The `.env` keys are only the application credentials that allow Fundalo to talk to Plaid at all.
 
-## Why Manual Cash, Venmo, and Zelle Entry Exists
+## Why Manual Cash and Zelle Entry Exists
 
 Plaid is necessary, but not sufficient, for this product.
 
 A lot of the target user’s real business activity may be missing or only partially represented in a standard bank feed:
 - a cash job may never hit the bank at all
-- a Venmo or Zelle payment may be transferred later and lose context
+- a Zelle payment may be transferred later and lose context
 - expenses paid off-platform may not be visible as clearly business-related
 
 That is why intake step 2 includes manual transaction entry for:
 - cash
-- Venmo
 - Zelle
 
 Those entries are merged with Plaid transactions before scoring.
@@ -226,7 +234,8 @@ This project is working as a local prototype, not a production platform yet.
 
 - Plaid access tokens are stored only in memory, so reconnect is required after server restart
 - there is no database for Items, users, sessions, or reports
-- there is no authentication or user account system
+- authentication now uses API-backed accounts with browser-stored session state
+- forgot-password supports reset tokens and optional SMTP-backed recovery emails
 - there is no webhook handling for Plaid updates
 - there is no audit log for manual transaction edits
 - there is no formal underwriting policy layer beyond current heuristics

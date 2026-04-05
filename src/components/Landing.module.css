@@ -72,6 +72,12 @@
 
 .about { padding: 5rem 0; background: var(--bg-white); scroll-margin-top: 70px; }
 .aboutBody { font-size: 16px; color: var(--text-secondary); max-width: 600px; line-height: 1.7; font-weight: 500; }
+.teamGrid { margin-top: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.teamCard { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow-sm); }
+.teamName { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+.teamRole { font-size: 13px; font-weight: 600; line-height: 1.6; color: var(--text-secondary); margin-bottom: 12px; }
+.teamLink { font-size: 13px; font-weight: 800; color: var(--teal); text-decoration: none; }
+.teamLink:hover { color: var(--teal-hover); text-decoration: underline; }
 
 .cta { background: linear-gradient(135deg, #1a2340 0%, #243058 60%, #1e3a50 100%); padding: 5rem 1.5rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 .ctaInner { display: flex; flex-direction: column; align-items: center; gap: 1rem; max-width: 520px; }
@@ -82,6 +88,8 @@
 
 .footer { background: var(--navy); padding: 1.75rem 1.5rem; }
 .footerInner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.footerBrand { font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
+.footerBrand sup { font-size: 8px; top: -0.5em; position: relative; }
 .footerText { font-size: 13px; color: rgba(255,255,255,0.4); font-weight: 500; }
 
 @keyframes fadeUp {

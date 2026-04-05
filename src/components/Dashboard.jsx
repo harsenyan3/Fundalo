@@ -44,6 +44,55 @@ function applyOverrides(transactions, overrides) {
   )
 }
 
+function translateType(type, es) {
+  if (!es) return String(type || '').toUpperCase()
+
+  const map = {
+    cash: 'EFECTIVO',
+    zelle: 'ZELLE',
+    ach: 'ACH',
+    card: 'TARJETA',
+    online: 'EN LINEA',
+    debit: 'DEBITO',
+    cash_app: 'CASH APP',
+    venmo: 'VENMO',
+  }
+
+  return map[type] || String(type || '').toUpperCase()
+}
+
+function translateReason(reason, es) {
+  if (!es) return reason
+
+  const map = {
+    'Manually confirmed': 'Confirmado manualmente',
+    'Cash movement with limited digital audit trail': 'Movimiento en efectivo con trazabilidad digital limitada',
+    'Counterparty looks like a registered business entity': 'La contraparte parece una entidad comercial registrada',
+    'Merchant pattern matches a common personal expense': 'El comercio coincide con un gasto personal comun',
+    'Merchant is a common business supplier': 'El comercio es un proveedor comun del negocio',
+    'Matches owner-declared business expense pattern': 'Coincide con un gasto de negocio declarado por el usuario',
+    'Matches the business name': 'Coincide con el nombre del negocio',
+    'Counterparty matches the owner name': 'La contraparte coincide con el nombre del dueño',
+    'Plaid categorized this inflow as income': 'Plaid clasifico este ingreso como ingreso de negocio',
+    'Peer payment rail is common for informal business revenue': 'Este rail de pago es comun para ingresos de negocio informales',
+    'Amount fits the expected service ticket size': 'El monto coincide con el precio esperado del servicio',
+    'Repeated inflows from this counterparty suggest a client relationship': 'Ingresos repetidos de esta contraparte sugieren una relacion con cliente',
+    'Looks like an internal transfer rather than customer revenue': 'Parece una transferencia interna y no ingreso de cliente',
+    'Plaid category leans personal/consumer': 'La categoria de Plaid se inclina a consumo personal',
+    'Plaid category can support business operations': 'La categoria de Plaid puede respaldar operaciones del negocio',
+    'Repeated supplier spend strengthens the business classification': 'Gastos repetidos con proveedor fortalecen la clasificacion de negocio',
+    'Looks like labor or contractor expense': 'Parece gasto de mano de obra o contratista',
+    'Housing payment on a mixed-use account is usually personal': 'Pago de vivienda en cuenta mixta suele ser personal',
+    'Owner reported this as a business-only account': 'El usuario reporto esta cuenta como solo de negocio',
+    'Insufficient evidence, needs review': 'Evidencia insuficiente, necesita revision',
+  }
+
+  const dynamic = reason?.replace(/^Description aligns with (.+) work$/, 'La descripcion coincide con actividad de $1')
+  if (dynamic && dynamic !== reason) return dynamic
+
+  return map[reason] || reason
+}
+
 export default function Dashboard({ profile, lang, setLang, onContinue, onBack }) {
   const [filter, setFilter] = useState('all')
   const [overrides, setOverrides] = useState({})
@@ -185,7 +234,7 @@ export default function Dashboard({ profile, lang, setLang, onContinue, onBack }
         <div>
           <h1 className={styles.ownerName}>{profile.businessName || profile.ownerName}</h1>
           <p className={styles.ownerSub}>
-            {es ? 'Análisis de flujo de caja' : 'Cash flow analysis'} · {es ? 'Últimos 180 días' : 'Last 180 days'}
+            {es ? 'Analisis de flujo de caja' : 'Cash flow analysis'} · {es ? 'Ultimos 180 dias' : 'Last 180 days'}
           </p>
         </div>
         <div className={styles.scorePill}>
@@ -272,8 +321,8 @@ export default function Dashboard({ profile, lang, setLang, onContinue, onBack }
                   {tx.description}
                 </div>
                 <div className={styles.txMeta}>
-                  {tx.date} · {tx.type.toUpperCase()}
-                  {tx.reason && <span className={styles.txReason}> · {tx.reason}</span>}
+                  {tx.date} · {translateType(tx.type, es)}
+                  {tx.reason && <span className={styles.txReason}> · {translateReason(tx.reason, es)}</span>}
                 </div>
               </div>
               <div className={styles.txRight}>
@@ -307,7 +356,7 @@ export default function Dashboard({ profile, lang, setLang, onContinue, onBack }
       </div>
 
       <button className="btn-primary" onClick={() => onContinue(report, classified)} style={{ marginTop: '2rem' }}>
-        {es ? 'Generar mi Fondo Rating →' : 'Generate my Fondo Rating →'}
+        {es ? 'Generar mi Fundo Rating →' : 'Generate my Fundo Rating →'}
       </button>
     </div>
   )

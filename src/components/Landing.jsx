@@ -7,16 +7,34 @@ const STATS = [
 ]
 
 const HOW = [
-  { step: '01', icon: '💳', en: { title: 'Connect your finances', body: 'Link your bank, upload Zelle and Venmo history. No credit check.' }, es: { title: 'Conecta tus finanzas', body: 'Vincula tu banco, sube tu historial de Zelle y Venmo. Sin verificación de crédito.' } },
+  { step: '01', icon: '💳', en: { title: 'Connect your finances', body: 'Link your bank and add Zelle or cash activity. No credit check.' }, es: { title: 'Conecta tus finanzas', body: 'Vincula tu banco y agrega actividad de Zelle o efectivo. Sin verificación de crédito.' } },
   { step: '02', icon: '🔍', en: { title: 'AI classifies your transactions', body: 'We separate business income from personal expenses, even in shared accounts.' }, es: { title: 'IA clasifica tus transacciones', body: 'Separamos ingresos del negocio de gastos personales, incluso en cuentas compartidas.' } },
-  { step: '03', icon: '📊', en: { title: 'Get your Fondo Rating', body: 'A professional report in English for lenders. Your dashboard in Spanish for you.' }, es: { title: 'Obtén tu Fondo Rating', body: 'Reporte profesional en inglés para prestamistas. Dashboard en español para ti.' } },
+  { step: '03', icon: '📊', en: { title: 'Get your Fundo Rating', body: 'A professional report in English for lenders. Your dashboard in Spanish for you.' }, es: { title: 'Obtén tu Fundo Rating', body: 'Reporte profesional en inglés para prestamistas. Dashboard en español para ti.' } },
   { step: '04', icon: '🚀', en: { title: 'Apply for funding', body: 'Matched grants and loans with AI-drafted applications ready to submit.' }, es: { title: 'Solicita financiamiento', body: 'Grants y préstamos con solicitudes redactadas por IA, listas para enviar.' } },
 ]
 
-const FundaloLogo = ({ size = 36 }) => (
+const TEAM = [
+  {
+    name: 'Hayk Arsenyan',
+    role: 'Computer Science @ Georgia Tech',
+    linkedin: 'https://www.linkedin.com/in/haykarsenyan/',
+  },
+  {
+    name: 'Luis Camilo Vélez',
+    role: 'ISyE @ Georgia Tech',
+    linkedin: 'https://www.linkedin.com/in/lcvr/',
+  },
+  {
+    name: 'Santiago Aramayo',
+    role: 'ISyE @ Georgia Tech',
+    linkedin: 'https://www.linkedin.com/in/santiago-aramayo/',
+  },
+]
+
+const FundaloLogo = ({ size = 36, navyFill = '#1a2340' }) => (
   <svg width={size} height={size} viewBox="0 0 200 200" fill="none">
-    <path d="M40 40 C40 40 40 10 80 10 C120 10 140 40 140 70 C140 100 110 110 80 110 L40 110 Z" fill="#1a2340"/>
-    <path d="M40 110 L40 160 C40 160 40 190 70 190 C100 190 110 165 110 150 C110 135 95 110 80 110 Z" fill="#1a2340"/>
+    <path d="M40 40 C40 40 40 10 80 10 C120 10 140 40 140 70 C140 100 110 110 80 110 L40 110 Z" fill={navyFill}/>
+    <path d="M40 110 L40 160 C40 160 40 190 70 190 C100 190 110 165 110 150 C110 135 95 110 80 110 Z" fill={navyFill}/>
     <circle cx="148" cy="158" r="28" fill="#2ec4a0"/>
   </svg>
 )
@@ -72,8 +90,8 @@ export default function Landing({ onStart, lang, setLang, onAccount, user }) {
           </h1>
           <p className={styles.heroSub}>
             {es
-              ? 'Transformamos tus pagos de Zelle, Venmo y efectivo en un Fondo Rating profesional. Sin historial en bureaus.'
-              : 'We turn your Zelle, Venmo, and cash payments into a professional Fondo Rating. No bureau history needed.'}
+              ? 'Transformamos tus pagos bancarios, de Zelle y de efectivo en un Fundo Rating profesional. Sin historial en bureaus.'
+              : 'We turn your bank, Zelle, and cash payments into a professional Fundo Rating. No bureau history needed.'}
           </p>
           <div className={styles.heroActions}>
             <button className={styles.heroCta} onClick={onStart}>
@@ -96,7 +114,7 @@ export default function Landing({ onStart, lang, setLang, onAccount, user }) {
           <div className={styles.mockCard}>
             <div className={styles.mockHeader}>
               <div className={styles.mockDots}><span/><span/><span/></div>
-              <span className={styles.mockTitle}>Fondo Rating Report</span>
+              <span className={styles.mockTitle}>Fundo Rating Report</span>
             </div>
             <div className={styles.mockGrade}>FR-B</div>
             <div className={styles.mockLabel}>Creditworthy</div>
@@ -173,6 +191,17 @@ export default function Landing({ onStart, lang, setLang, onAccount, user }) {
               ? "Fundalo nació en el SHPE Vibra ATL Hackathon 2026. Somos un equipo que vio de primera mano cómo los negocios Latinos son invisibles para el sistema financiero — y decidimos cambiar eso."
               : "Fundalo was born at the SHPE Vibra ATL Hackathon 2026. We're a team that saw firsthand how Latino businesses are invisible to the financial system — and decided to change that."}
           </p>
+          <div className={styles.teamGrid}>
+            {TEAM.map((member) => (
+              <div key={member.name} className={styles.teamCard}>
+                <div className={styles.teamName}>{member.name}</div>
+                <div className={styles.teamRole}>{member.role}</div>
+                <a className={styles.teamLink} href={member.linkedin} target="_blank" rel="noreferrer">
+                  LinkedIn
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -188,10 +217,10 @@ export default function Landing({ onStart, lang, setLang, onAccount, user }) {
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
           <div className={styles.logo} onClick={scrollToTop} style={{ cursor: 'pointer' }}>
-            <FundaloLogo size={24} />
-            <span className={styles.logoText} style={{ fontSize: 15 }}>Fundalo</span>
+            <FundaloLogo size={24} navyFill="#ffffff" />
+            <span className={styles.footerBrand}>Fundalo<sup>TM</sup></span>
           </div>
-          <p className={styles.footerText}>{es ? '© 2026 Fundalo. Construido para la comunidad Latina.' : '© 2026 Fundalo. Built for the Latino community.'}</p>
+          <p className={styles.footerText}>{es ? 'Copyright 2026 Fundalo TM. Construido para la comunidad Latina.' : 'Copyright 2026 Fundalo TM. Built for the Latino community.'}</p>
         </div>
       </footer>
     </div>

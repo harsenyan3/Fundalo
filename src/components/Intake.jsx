@@ -29,17 +29,17 @@ const INDUSTRIES = {
 }
 
 const PAYMENTS = {
-  en: ['Zelle', 'Venmo', 'Cash', 'Check', 'Card'],
-  es: ['Zelle', 'Venmo', 'Efectivo', 'Cheque', 'Tarjeta'],
+  en: ['Zelle', 'Cash', 'Check', 'Card'],
+  es: ['Zelle', 'Efectivo', 'Cheque', 'Tarjeta'],
 }
 
-const PAYMENT_VALUES = ['zelle', 'venmo', 'cash', 'check', 'card']
+const PAYMENT_VALUES = ['zelle', 'cash', 'check', 'card']
 const EXPENSES = {
   en: ['Supplies', 'Gas / Transport', 'Equipment', 'Phone bill', 'Marketing', 'Subcontractors', 'Insurance', 'Rent / Storage'],
   es: ['Materiales', 'Gasolina / Transporte', 'Equipo', 'Teléfono', 'Publicidad', 'Subcontratistas', 'Seguro', 'Renta / Almacén'],
 }
 
-const MANUAL_TYPES = ['cash', 'venmo', 'zelle']
+const MANUAL_TYPES = ['cash', 'zelle']
 const MANUAL_DIRECTIONS = ['in', 'out']
 
 function buildAnalysisProfile(profile) {
@@ -77,7 +77,7 @@ const T = {
     back: '← Back to home', step: 'Step', of: 'of',
     steps: [
       { title: 'Your information', sub: 'Tell us about you and your business' },
-      { title: 'How you get paid', sub: 'Connect your bank and add missing cash, Venmo, or Zelle activity' },
+      { title: 'How you get paid', sub: 'Connect your bank and add missing cash or Zelle activity' },
       { title: 'Your assets', sub: 'Everything you own of value strengthens your application' },
     ],
     ownerName: 'Your full name', bizName: 'Business name',
@@ -97,14 +97,14 @@ const T = {
     plaidReconnect: 'Reconnect Plaid',
     plaidTransactions: 'transactions loaded',
     plaidStatus: 'Transactions status',
-    manualTitle: 'Add cash, Venmo, and Zelle manually',
+    manualTitle: 'Add cash and Zelle manually',
     manualSub: 'Use this for jobs or expenses that may not appear clearly in the bank feed.',
     manualType: 'Type',
     manualDirection: 'Direction',
     manualAmount: 'Amount ($)',
     manualDate: 'Date',
     manualDescription: 'Description',
-    manualPlaceholder: 'Cash cleaning job from Maria, Venmo from John, etc.',
+    manualPlaceholder: 'Cash cleaning job from Maria, Zelle from John, etc.',
     manualAdd: 'Add transaction',
     manualEmpty: 'No manual transactions added yet',
     directionIn: 'Money in',
@@ -121,7 +121,7 @@ const T = {
     back: '← Volver al inicio', step: 'Paso', of: 'de',
     steps: [
       { title: 'Tu información', sub: 'Cuéntanos sobre ti y tu negocio' },
-      { title: 'Cómo cobras', sub: 'Conecta tu banco y agrega actividad faltante de efectivo, Venmo o Zelle' },
+      { title: 'Cómo cobras', sub: 'Conecta tu banco y agrega actividad faltante de efectivo o Zelle' },
       { title: 'Tus activos', sub: 'Todo lo que posees con valor fortalece tu solicitud' },
     ],
     ownerName: 'Tu nombre completo', bizName: 'Nombre del negocio',
@@ -141,14 +141,14 @@ const T = {
     plaidReconnect: 'Reconectar Plaid',
     plaidTransactions: 'transacciones cargadas',
     plaidStatus: 'Estado de transacciones',
-    manualTitle: 'Agregar efectivo, Venmo y Zelle manualmente',
+    manualTitle: 'Agregar efectivo y Zelle manualmente',
     manualSub: 'Úsalo para trabajos o gastos que no aparecen claramente en el banco.',
     manualType: 'Tipo',
     manualDirection: 'Dirección',
     manualAmount: 'Monto ($)',
     manualDate: 'Fecha',
     manualDescription: 'Descripción',
-    manualPlaceholder: 'Trabajo de limpieza en efectivo de Maria, Venmo de John, etc.',
+    manualPlaceholder: 'Trabajo de limpieza en efectivo de Maria, Zelle de John, etc.',
     manualAdd: 'Agregar transacción',
     manualEmpty: 'Todavía no agregaste transacciones manuales',
     directionIn: 'Dinero que entra',
@@ -163,7 +163,15 @@ const T = {
   }
 }
 
-export default function Intake({ onComplete, onBack, lang, setLang }) {
+const FundaloLogo = ({ navyFill = '#ffffff' }) => (
+  <svg width="28" height="28" viewBox="0 0 200 200" fill="none">
+    <path d="M40 40 C40 40 40 10 80 10 C120 10 140 40 140 70 C140 100 110 110 80 110 L40 110 Z" fill={navyFill}/>
+    <path d="M40 110 L40 160 C40 160 40 190 70 190 C100 190 110 165 110 150 C110 135 95 110 80 110 Z" fill={navyFill}/>
+    <circle cx="148" cy="158" r="28" fill="#2ec4a0"/>
+  </svg>
+)
+
+export default function Intake({ onComplete, onBack, lang, setLang, initialProfile = null }) {
   const [step, setStep] = useState(1)
   const today = new Date().toISOString().slice(0, 10)
   const [form, setForm] = useState({
@@ -171,7 +179,7 @@ export default function Intake({ onComplete, onBack, lang, setLang }) {
     yearsOperating: '', employees: '0',
     priceMin: '', priceMax: '',
     commonExpenses: [],
-    paymentFormats: ['zelle', 'venmo'],
+    paymentFormats: ['zelle'],
     accountType: 'shared',
     assets: [], assetInput: '',
     plaidSessionId: '',
@@ -207,6 +215,27 @@ export default function Intake({ onComplete, onBack, lang, setLang }) {
     loadHealth()
     return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    if (!initialProfile) return
+
+    setForm((prev) => ({
+      ...prev,
+      ...initialProfile,
+      manualTransactions: Array.isArray(initialProfile.manualTransactions) ? initialProfile.manualTransactions : [],
+      assets: Array.isArray(initialProfile.assets) ? initialProfile.assets : [],
+      commonExpenses: Array.isArray(initialProfile.commonExpenses) ? initialProfile.commonExpenses : [],
+      paymentFormats: Array.isArray(initialProfile.paymentFormats) && initialProfile.paymentFormats.length > 0
+        ? initialProfile.paymentFormats.filter((value) => PAYMENT_VALUES.includes(value))
+        : prev.paymentFormats,
+      manualType: 'cash',
+      manualDirection: 'in',
+      manualAmount: '',
+      manualDate: today,
+      manualDescription: '',
+      assetInput: '',
+    }))
+  }, [initialProfile, today])
 
   function set(key, val) { setForm((prev) => ({ ...prev, [key]: val })) }
 
@@ -327,7 +356,7 @@ export default function Intake({ onComplete, onBack, lang, setLang }) {
       <div className={styles.sidebar}>
         <div className={styles.sidebarTop}>
           <div className={styles.logo}>
-            <div className={styles.logoIcon}>F</div>
+            <div className={styles.logoIcon}><FundaloLogo /></div>
             <span className={styles.logoText}>Fundalo</span>
           </div>
           <div className={styles.steps}>
@@ -348,9 +377,15 @@ export default function Intake({ onComplete, onBack, lang, setLang }) {
 
       <div className={styles.main}>
         <div className={styles.mainTop}>
-          <button className={styles.backBtn} onClick={step > 1 ? () => setStep((current) => current - 1) : onBack}>
-            {step > 1 ? `← ${lang === 'en' ? 'Back' : 'Atrás'}` : t.back}
-          </button>
+          <div className={styles.mainBrand}>
+            <div className={styles.mainLogo}>
+              <FundaloLogo navyFill="#1a2340" />
+              <span className={styles.mainLogoText}>Fundalo</span>
+            </div>
+            <button className={styles.backBtn} onClick={step > 1 ? () => setStep((current) => current - 1) : onBack}>
+              {step > 1 ? `← ${lang === 'en' ? 'Back' : 'Atrás'}` : t.back}
+            </button>
+          </div>
           <div className={styles.langToggle}>
             <button className={lang === 'en' ? styles.langOn : ''} onClick={() => setLang('en')}>EN</button>
             <button className={lang === 'es' ? styles.langOn : ''} onClick={() => setLang('es')}>ES</button>

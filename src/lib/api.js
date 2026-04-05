@@ -32,7 +32,7 @@ function getApiCandidates(pathname) {
   return candidates
 }
 
-async function apiFetch(pathname, options) {
+export async function apiFetch(pathname, options) {
   const candidates = getApiCandidates(pathname)
   let lastError = null
 
@@ -53,7 +53,7 @@ async function apiFetch(pathname, options) {
     }
   }
 
-  throw new Error('Unable to reach the local Fundalo API. Keep `npm run dev:full` running, then refresh and try Plaid again.')
+  throw new Error('Unable to reach the local Fundalo API. Keep `npm run dev:full` running, then refresh and try again.')
 }
 
 export function getApiHealth() {

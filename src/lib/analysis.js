@@ -458,6 +458,14 @@ export function buildCashflowReport(classified, profile = {}) {
   const debtCapacity = Math.max(0, Math.round(avgMonthlyFree * 0.3))
   const loanMin = Math.max(0, Math.round((debtCapacity * 16) / 1000) * 1000)
   const loanMax = Math.max(0, Math.round((debtCapacity * 28) / 1000) * 1000)
+  const revenueVolatilityPercent = Math.round(revenueVolatility * 100)
+  const classificationCoveragePercent = Math.round(classificationCoverage * 100)
+  const flaggedRatioPercent = Math.round(flaggedRatio * 100)
+  const ghostRatioPercent = Math.round(ghostRatio * 100)
+  const personalMixRatioPercent = Math.round(personalMixRatio * 100)
+  const businessSharePercent = classified.length > 0
+    ? Math.round((business.length / classified.length) * 100)
+    : 0
 
   return {
     bizRevenue: Math.round(bizRevenue),
@@ -477,6 +485,16 @@ export function buildCashflowReport(classified, profile = {}) {
     monthsObserved,
     distinctClients,
     scoreBreakdown,
+    factorSummary: {
+      revenueVolatilityPercent,
+      classificationCoveragePercent,
+      flaggedRatioPercent,
+      ghostRatioPercent,
+      personalMixRatioPercent,
+      businessSharePercent,
+      yearsOperating: Number(profile?.yearsOperating || 0),
+      marginPercent: Math.round(marginRatio * 100),
+    },
     verifiedRelationships: buildVerifiedRelationships(classified),
     monthlyTrend: monthly,
     counts: {
@@ -496,7 +514,7 @@ export function buildNarrative(profile, report, classified, lang = 'en', audienc
   if (lang === 'es' && audience === 'owner') {
     return [
       `${profile.businessName || profile.ownerName} muestra aproximadamente $${report.monthlyRevenue.toLocaleString()} en ingresos mensuales de negocio y $${report.monthlyFree.toLocaleString()} en flujo libre, basado en ${report.counts.total} transacciones revisadas durante ${report.monthsObserved} meses. Encontramos evidencia repetida de ingresos de negocio a través de ${topEvidence}, lo cual fortalece la historia financiera del negocio.`,
-      `El Fondo Rating actual es ${report.reliabilityScore}/100. Los factores que más ayudan son la consistencia de ingresos y el margen operativo; los principales riesgos siguen siendo ${report.counts.flagged} transacciones que necesitan revisión manual y $${report.ghostTotal.toLocaleString()} en movimientos de efectivo con poca trazabilidad. Con el flujo actual, la capacidad estimada de pago es de $${report.debtCapacity.toLocaleString()} por mes, lo que respalda un rango aproximado de préstamo de $${report.loanMin.toLocaleString()} a $${report.loanMax.toLocaleString()}.`,
+      `El Fundo Rating actual es ${report.reliabilityScore}/100. Los factores que más ayudan son la consistencia de ingresos y el margen operativo; los principales riesgos siguen siendo ${report.counts.flagged} transacciones que necesitan revisión manual y $${report.ghostTotal.toLocaleString()} en movimientos de efectivo con poca trazabilidad. Con el flujo actual, la capacidad estimada de pago es de $${report.debtCapacity.toLocaleString()} por mes, lo que respalda un rango aproximado de préstamo de $${report.loanMin.toLocaleString()} a $${report.loanMax.toLocaleString()}.`,
       `Recomendación: presentar este reporte junto con recibos, facturas o capturas de pago para las transacciones marcadas. Si reduces el uso mixto personal/negocio y mantienes ingresos similares por 2 o 3 meses más, el perfil debería fortalecerse de forma clara ante un prestamista comunitario o CDFI.`,
     ].join('\n\n')
   }
@@ -511,7 +529,7 @@ export function buildNarrative(profile, report, classified, lang = 'en', audienc
 
   return [
     `${profile.businessName || profile.ownerName} shows about $${report.monthlyRevenue.toLocaleString()} in average monthly business revenue and $${report.monthlyFree.toLocaleString()} in monthly free cash flow from ${report.counts.total} reviewed transactions over ${report.monthsObserved} months. The strongest evidence comes from recurring business-like payments from ${topEvidence}.`,
-    `The current Fundalo score is ${report.reliabilityScore}/100. Revenue consistency and cash flow health are helping the profile, while ${report.counts.flagged} transactions still need review and $${report.ghostTotal.toLocaleString()} is tied to cash-style activity with weaker auditability. Based on current cash flow, estimated debt capacity is $${report.debtCapacity.toLocaleString()} per month and the supportable loan range is roughly $${report.loanMin.toLocaleString()} to $${report.loanMax.toLocaleString()}.`,
+    `The current Fundo score is ${report.reliabilityScore}/100. Revenue consistency and cash flow health are helping the profile, while ${report.counts.flagged} transactions still need review and $${report.ghostTotal.toLocaleString()} is tied to cash-style activity with weaker auditability. Based on current cash flow, estimated debt capacity is $${report.debtCapacity.toLocaleString()} per month and the supportable loan range is roughly $${report.loanMin.toLocaleString()} to $${report.loanMax.toLocaleString()}.`,
     `Recommendation: pair this report with invoices, screenshots, or receipts for the flagged items and continue reducing personal/business commingling. A few additional months of similar deposits should make the credit story notably stronger.`,
   ].join('\n\n')
 }
