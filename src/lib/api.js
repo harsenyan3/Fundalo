@@ -83,3 +83,11 @@ export function analyzePlaidAccount({ sessionId, profile, days = 180 }) {
     body: JSON.stringify({ sessionId, profile, days }),
   })
 }
+
+export function estimateAssets(assets) {
+  return apiFetch('/api/assets/estimate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assets }),
+  })
+}

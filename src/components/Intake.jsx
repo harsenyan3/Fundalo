@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { analyzePlaidAccount, getApiHealth } from '../lib/api.js'
+import { analyzePlaidAccount, estimateAssets, getApiHealth } from '../lib/api.js'
 import { openPlaidLink } from '../lib/plaidLink.js'
 import styles from './Intake.module.css'
 
@@ -70,6 +70,13 @@ function buildSubmissionProfile(form, lang) {
     commonExpenseLabels: form.commonExpenses.map((index) => EXPENSES.en[index]),
     lang,
   }
+}
+
+function normalizeAssetShape(asset) {
+  if (!asset) return null
+  if (typeof asset === 'string') return { description: asset }
+  if (typeof asset === 'object' && asset.description) return asset
+  return null
 }
 
 const T = {
@@ -197,6 +204,8 @@ export default function Intake({ onComplete, onBack, lang, setLang, initialProfi
   const [apiHealth, setApiHealth] = useState({ loading: true, ok: false, plaidConfigured: false, plaidEnv: 'sandbox' })
   const [plaidBusy, setPlaidBusy] = useState(false)
   const [plaidError, setPlaidError] = useState('')
+  const [assetBusy, setAssetBusy] = useState(false)
+  const [assetError, setAssetError] = useState('')
 
   const t = T[lang]
 
@@ -223,7 +232,9 @@ export default function Intake({ onComplete, onBack, lang, setLang, initialProfi
       ...prev,
       ...initialProfile,
       manualTransactions: Array.isArray(initialProfile.manualTransactions) ? initialProfile.manualTransactions : [],
-      assets: Array.isArray(initialProfile.assets) ? initialProfile.assets : [],
+      assets: Array.isArray(initialProfile.assets)
+        ? initialProfile.assets.map(normalizeAssetShape).filter(Boolean)
+        : [],
       commonExpenses: Array.isArray(initialProfile.commonExpenses) ? initialProfile.commonExpenses : [],
       paymentFormats: Array.isArray(initialProfile.paymentFormats) && initialProfile.paymentFormats.length > 0
         ? initialProfile.paymentFormats.filter((value) => PAYMENT_VALUES.includes(value))
@@ -258,9 +269,35 @@ export default function Intake({ onComplete, onBack, lang, setLang, initialProfi
     }))
   }
 
-  function addAsset() {
-    if (!form.assetInput.trim()) return
-    setForm((prev) => ({ ...prev, assets: [...prev.assets, prev.assetInput.trim()], assetInput: '' }))
+  async function addAsset() {
+    const description = form.assetInput.trim()
+    if (!description) return
+
+    setAssetBusy(true)
+    setAssetError('')
+
+    try {
+      const valued = await estimateAssets([description])
+      const nextAsset = valued.assets?.[0] || { description }
+
+      setForm((prev) => ({
+        ...prev,
+        assets: [...prev.assets, nextAsset],
+        totalEstimatedAssetValue: (prev.totalEstimatedAssetValue || 0) + (nextAsset.estimatedValue || 0),
+        assetInput: '',
+      }))
+    } catch {
+      setForm((prev) => ({
+        ...prev,
+        assets: [...prev.assets, { description }],
+        assetInput: '',
+      }))
+      setAssetError(lang === 'es'
+        ? 'No se pudo estimar el valor ahora. Lo intentaremos de nuevo en el reporte.'
+        : 'Could not estimate the value right now. We will try again in the report.')
+    } finally {
+      setAssetBusy(false)
+    }
   }
 
   function removeAsset(index) {
@@ -339,9 +376,28 @@ export default function Intake({ onComplete, onBack, lang, setLang, initialProfi
     }
   }
 
-  function handleNext() {
+  async function handleNext() {
     if (step === 3) {
-      onComplete(buildSubmissionProfile(form, lang))
+      const baseProfile = buildSubmissionProfile(form, lang)
+      const assetInputs = Array.isArray(baseProfile.assets)
+        ? baseProfile.assets.map(normalizeAssetShape).filter(Boolean)
+        : []
+
+      if (assetInputs.length === 0) {
+        onComplete(baseProfile)
+        return
+      }
+
+      try {
+        const valued = await estimateAssets(assetInputs)
+        onComplete({
+          ...baseProfile,
+          assets: valued.assets,
+          totalEstimatedAssetValue: valued.totalEstimatedAssetValue,
+        })
+      } catch {
+        onComplete(baseProfile)
+      }
     } else {
       setStep((current) => current + 1)
     }
@@ -560,15 +616,30 @@ export default function Intake({ onComplete, onBack, lang, setLang, initialProfi
               <label className="label">{t.addAsset}</label>
               <div className={styles.assetRow}>
                 <input className="input" placeholder={t.assetPlaceholder} value={form.assetInput} onChange={(e) => set('assetInput', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addAsset()} />
-                <button type="button" className={styles.addBtn} onClick={addAsset}>+</button>
+                <button type="button" className={styles.addBtn} onClick={addAsset} disabled={assetBusy}>{assetBusy ? '…' : '+'}</button>
               </div>
               <p className={styles.hint}>{t.addHint}</p>
+              {assetError && <div className={styles.assetError}>{assetError}</div>}
             </div>
             {form.assets.length > 0 ? (
               <div className={styles.assetList}>
                 {form.assets.map((asset, index) => (
-                  <div key={asset + index} className={styles.assetChip}>
-                    <span>{asset}</span>
+                  <div key={`${asset.description || asset}-${index}`} className={styles.assetChip}>
+                    <div className={styles.assetChipContent}>
+                      <span>{asset.description || asset}</span>
+                      {asset.estimatedValue ? (
+                        <span className={styles.assetChipMeta}>
+                          ${asset.estimatedValue.toLocaleString()} · {asset.valuationSource === 'anthropic'
+                            ? (lang === 'es' ? 'Claude' : 'Claude')
+                            : (lang === 'es' ? 'estimacion base' : 'fallback estimate')}
+                        </span>
+                      ) : null}
+                      {asset.note && asset.valuationSource !== 'anthropic' ? (
+                        <span className={styles.assetChipMeta}>
+                          {asset.note}
+                        </span>
+                      ) : null}
+                    </div>
                     <button type="button" onClick={() => removeAsset(index)}>×</button>
                   </div>
                 ))}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { buildNarrative } from '../lib/classifier.js'
+import { estimateAssets } from '../lib/api.js'
 import styles from './FondoReport.module.css'
 
 function getFundoRating(score) {
@@ -10,11 +11,24 @@ function getFundoRating(score) {
   return { grade: 'FR-E', label: 'Needs History', labelEs: 'Necesita historial', color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' }
 }
 
+function FundaloLogo({ size = 40, navyFill = '#ffffff' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 200 200" fill="none">
+      <path d="M40 40 C40 40 40 10 80 10 C120 10 140 40 140 70 C140 100 110 110 80 110 L40 110 Z" fill={navyFill}/>
+      <path d="M40 110 L40 160 C40 160 40 190 70 190 C100 190 110 165 110 150 C110 135 95 110 80 110 Z" fill={navyFill}/>
+      <circle cx="148" cy="158" r="28" fill="#2ec4a0"/>
+    </svg>
+  )
+}
+
 export default function FondoReport({ profile, report, classified, lang, setLang, onBack }) {
   const [narrative, setNarrative] = useState('')
+  const [valuedAssets, setValuedAssets] = useState(() => Array.isArray(profile.assets) ? profile.assets : [])
 
   const rating = getFundoRating(report.reliabilityScore)
   const isEs = lang === 'es'
+  const assetList = Array.isArray(valuedAssets) ? valuedAssets : []
+  const totalEstimatedAssetValue = profile.totalEstimatedAssetValue || assetList.reduce((sum, asset) => sum + (asset.estimatedValue || 0), 0)
   const factorRows = [
     { label: isEs ? 'Volatilidad mensual de ingresos' : 'Monthly revenue volatility', val: `${report.factorSummary?.revenueVolatilityPercent || 0}%` },
     { label: isEs ? 'Margen promedio' : 'Average margin', val: `${report.factorSummary?.marginPercent || 0}%` },
@@ -29,6 +43,33 @@ export default function FondoReport({ profile, report, classified, lang, setLang
   useEffect(() => {
     setNarrative(buildNarrative(profile, report, classified, lang, 'owner'))
   }, [classified, lang, profile, report])
+
+  useEffect(() => {
+    let active = true
+    const assets = Array.isArray(profile.assets) ? profile.assets : []
+    setValuedAssets(assets)
+
+    const needsValuation = assets.length > 0 && assets.some((asset) => !asset?.estimatedValue)
+    if (!needsValuation) {
+      return () => { active = false }
+    }
+
+    async function loadValuations() {
+      try {
+        const valued = await estimateAssets(assets.map((asset) => asset.description || asset))
+        if (active) {
+          setValuedAssets(valued.assets)
+        }
+      } catch {
+        if (active) {
+          setValuedAssets(assets)
+        }
+      }
+    }
+
+    loadValuations()
+    return () => { active = false }
+  }, [profile.assets])
 
   return (
     <div className={styles.page}>
@@ -49,7 +90,9 @@ export default function FondoReport({ profile, report, classified, lang, setLang
         <div className={styles.reportHeader}>
           <div className={styles.headerLeft}>
             <div className={styles.reportLogo}>
-              <div className={styles.logoMark}>F</div>
+              <div className={styles.logoMark}>
+                <FundaloLogo size={40} />
+              </div>
               <div>
                 <div className={styles.logoName}>Fundalo</div>
                 <div className={styles.logoTagline}>
@@ -134,14 +177,34 @@ export default function FondoReport({ profile, report, classified, lang, setLang
           </div>
         </div>
 
-        {Array.isArray(profile.assets) && profile.assets.length > 0 && (
+        {assetList.length > 0 && (
           <div className={styles.section}>
             <div className={styles.sectionTitle}>{isEs ? 'ACTIVOS DECLARADOS' : 'DECLARED ASSETS'}</div>
+            <div className={styles.assetSummary}>
+              <span>{isEs ? 'Valor total estimado' : 'Total estimated asset value'}</span>
+              <strong>${totalEstimatedAssetValue.toLocaleString()}</strong>
+            </div>
             <div className={styles.assetsList}>
-              {profile.assets.map((asset) => (
-                <div key={asset} className={styles.assetItem}>
+              {assetList.map((asset) => (
+                <div key={asset.description || asset} className={styles.assetItem}>
                   <span className={styles.assetDot} />
-                  <span>{asset}</span>
+                  <div className={styles.assetInfo}>
+                    <span className={styles.assetName}>{asset.description || asset}</span>
+                    {asset.estimatedValue ? (
+                      <span className={styles.assetMeta}>
+                        {isEs ? 'Estimado' : 'Estimated'}: ${asset.estimatedValue.toLocaleString()}
+                        {asset.estimatedRange ? ` (${asset.estimatedRange.low.toLocaleString()}-${asset.estimatedRange.high.toLocaleString()})` : ''}
+                        {asset.valuationSource === 'anthropic'
+                          ? ` · ${isEs ? 'por Claude' : 'by Claude'}`
+                          : ` · ${isEs ? 'estimacion base' : 'fallback estimate'}`}
+                      </span>
+                    ) : null}
+                    {asset.note ? (
+                      <span className={styles.assetMeta}>
+                        {asset.note}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>

@@ -199,9 +199,29 @@
   padding: 6px 14px;
   font-size: 13px; font-weight: 600; color: var(--growth);
 }
+.assetChipContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.assetChipMeta {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f766e;
+}
 .assetChip button {
   background: none; border: none; color: var(--growth);
   font-size: 16px; cursor: pointer; padding: 0; line-height: 1;
+}
+.assetError {
+  margin-top: 8px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c2410c;
 }
 
 .emptyAssets {

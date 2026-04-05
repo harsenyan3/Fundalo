@@ -24,12 +24,24 @@ export default function Account({ lang, onStartNew, onViewReport, onBack }) {
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.email?.[0]?.toUpperCase() || 'U'
+  const assetSummary = Array.isArray(data?.profile?.assets) && data.profile.assets.length > 0
+    ? data.profile.assets.map((asset) => asset.description || asset).join(', ')
+    : (es ? 'Ninguno' : 'None')
 
   return (
     <div className={styles.page}>
       <div className={styles.nav}>
         <div className={styles.navInner}>
-          <div className={styles.logo}>
+          <div
+            className={styles.logo}
+            onClick={onBack}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                onBack()
+              }
+            }}>
             <svg width="28" height="28" viewBox="0 0 200 200" fill="none">
               <path d="M40 40 C40 40 40 10 80 10 C120 10 140 40 140 70 C140 100 110 110 80 110 L40 110 Z" fill="#1a2340"/>
               <path d="M40 110 L40 160 C40 160 40 190 70 190 C100 190 110 165 110 150 C110 135 95 110 80 110 Z" fill="#1a2340"/>
@@ -103,7 +115,7 @@ export default function Account({ lang, onStartNew, onViewReport, onBack }) {
                     { label: es ? 'Años operando' : 'Years operating', val: data.profile.yearsOperating },
                     { label: es ? 'Rango de precios' : 'Price range', val: data.profile.priceMin && data.profile.priceMax ? `$${data.profile.priceMin} – $${data.profile.priceMax}` : 'N/A' },
                     { label: es ? 'Tipo de cuenta' : 'Account type', val: data.profile.accountType === 'shared' ? (es ? 'Mixta' : 'Mixed') : (es ? 'Solo negocio' : 'Business only') },
-                    { label: es ? 'Activos' : 'Assets', val: data.profile.assets?.length ? data.profile.assets.join(', ') : (es ? 'Ninguno' : 'None') },
+                    { label: es ? 'Activos' : 'Assets', val: assetSummary },
                   ].map(item => (
                     <div key={item.label} className={styles.infoRow}>
                       <span className={styles.infoLabel}>{item.label}</span>

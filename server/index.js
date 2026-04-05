@@ -108,6 +108,10 @@ function isEmailConfigured() {
   )
 }
 
+function isAnthropicConfigured() {
+  return Boolean(process.env.ANTHROPIC_API_KEY)
+}
+
 function getMailTransporter() {
   if (!isEmailConfigured()) return null
   if (!mailTransporter) {
@@ -217,6 +221,172 @@ function filterTransactionsByDays(transactions, days) {
     const txDate = new Date(tx.date)
     return Number.isNaN(txDate.getTime()) || txDate >= threshold
   })
+}
+
+function estimateAssetValue(assetInput) {
+  const input = typeof assetInput === 'string'
+    ? { description: assetInput }
+    : assetInput || {}
+  const description = String(input.description || '').trim()
+  const normalized = description.toLowerCase()
+  const yearMatch = normalized.match(/\b(19|20)\d{2}\b/)
+  const year = yearMatch ? Number(yearMatch[0]) : null
+  const currentYear = new Date().getFullYear()
+  const age = year ? Math.max(0, currentYear - year) : null
+
+  const isVehicle = /truck|van|vito|car|sedan|suv|wagon|minivan|mercedes|benz|toyota|ford|chevy|chevrolet|gmc|ram|honda|nissan|sprinter|transit|vito|metris|eurovan|cargo/.test(normalized)
+  const isCommercialVan = /vito|metris|sprinter|transit|promaster|cargo van|work van|minibus/.test(normalized)
+  const isPickupTruck = /pickup|f-150|f150|silverado|sierra|tacoma|tundra|ram 1500|ram 2500/.test(normalized)
+  const isLuxuryBrand = /mercedes|benz|bmw|audi|lexus|porsche|range rover|land rover/.test(normalized)
+
+  let category = 'general_equipment'
+  let low = 500
+  let high = 2500
+
+  if (/house|home|property|building|condo|duplex|land/.test(normalized)) {
+    category = 'real_estate'
+    low = 90000
+    high = 350000
+  } else if (isVehicle) {
+    category = isCommercialVan ? 'commercial_vehicle' : 'vehicle'
+
+    if (isCommercialVan) {
+      low = 14000
+      high = 38000
+    } else if (isPickupTruck) {
+      low = 12000
+      high = 42000
+    } else if (isLuxuryBrand) {
+      low = 12000
+      high = 36000
+    } else {
+      low = 8000
+      high = 26000
+    }
+  } else if (/trailer|mower|excavator|tractor|forklift|bobcat|skid/.test(normalized)) {
+    category = 'heavy_equipment'
+    low = 4000
+    high = 45000
+  } else if (/laptop|computer|ipad|tablet|printer|camera|phone/.test(normalized)) {
+    category = 'electronics'
+    low = 250
+    high = 2200
+  } else if (/inventory|stock|merchandise|product/.test(normalized)) {
+    category = 'inventory'
+    low = 1000
+    high = 12000
+  } else if (/cleaning|janitorial|pressure washer|vacuum|generator|tool|equipment|salon|chair|dryer/.test(normalized)) {
+    category = 'business_equipment'
+    low = 600
+    high = 9000
+  }
+
+  if (year) {
+    const depreciation = category === 'real_estate'
+      ? 1
+      : category === 'commercial_vehicle'
+        ? Math.max(0.35, 1 - age * 0.065)
+        : category === 'vehicle'
+          ? Math.max(0.28, 1 - age * 0.075)
+          : Math.max(0.22, 1 - age * 0.08)
+    low = Math.round(low * depreciation)
+    high = Math.round(high * depreciation)
+  }
+
+  const estimatedValue = Math.round((low + high) / 2 / 50) * 50
+
+  return {
+    description,
+    category,
+    estimatedValue,
+    estimatedRange: { low, high },
+    confidence: category === 'commercial_vehicle' || (year && category !== 'general_equipment')
+      ? 'high'
+      : year || category !== 'general_equipment'
+        ? 'medium'
+        : 'low',
+    note: category === 'real_estate'
+      ? 'Estimated from a broad local property range'
+      : category === 'commercial_vehicle'
+        ? year
+          ? `Estimated as a commercial van/work vehicle using ${year} model-year depreciation`
+          : 'Estimated as a commercial van/work vehicle from comparable listings'
+      : year
+        ? `Estimated using ${year} model-year depreciation`
+        : 'Estimated from comparable asset keywords',
+  }
+}
+
+function extractJsonObject(text) {
+  const source = String(text || '').trim()
+  const match = source.match(/\{[\s\S]*\}/)
+  if (!match) {
+    throw new Error('Claude did not return JSON')
+  }
+
+  return JSON.parse(match[0])
+}
+
+async function estimateAssetValueWithClaude(assetInput) {
+  const input = typeof assetInput === 'string'
+    ? { description: assetInput }
+    : assetInput || {}
+  const description = String(input.description || '').trim()
+
+  if (!description) {
+    return estimateAssetValue(assetInput)
+  }
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: [
+        'You estimate fair-market resale values for business assets in the United States.',
+        'Return only valid JSON.',
+        'Be conservative and realistic, not optimistic.',
+        'If the item is uncommon in the US, imported, or sold under a different model name, infer the closest commercially equivalent US resale market.',
+        'For vehicles, especially vans and work vehicles, do not price them like generic equipment. Use plausible used-vehicle resale ranges.',
+        'Output schema: {"category":"string","estimatedValue":number,"low":number,"high":number,"confidence":"low|medium|high","note":"string"}',
+      ].join(' '),
+      messages: [
+        {
+          role: 'user',
+          content: `Estimate the current resale value of this business asset: "${description}". Assume US market pricing. Use model year if present. If the exact item is not standard in the US, map it to the nearest equivalent US market item and explain that briefly in note. Return JSON only.`,
+        },
+      ],
+    }),
+  })
+
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = payload?.error?.message || payload?.error?.type || 'Anthropic asset pricing failed'
+    throw new Error(error)
+  }
+
+  const text = Array.isArray(payload.content)
+    ? payload.content.map((block) => block.text || '').join('\n')
+    : ''
+  const parsed = extractJsonObject(text)
+  const low = Math.max(0, Math.round(Number(parsed.low || parsed.estimatedValue || 0)))
+  const high = Math.max(low, Math.round(Number(parsed.high || parsed.estimatedValue || low)))
+  const estimatedValue = Math.max(low, Math.round(Number(parsed.estimatedValue || (low + high) / 2)))
+
+  return {
+    description,
+    category: String(parsed.category || 'asset').trim() || 'asset',
+    estimatedValue,
+    estimatedRange: { low, high },
+    confidence: ['low', 'medium', 'high'].includes(parsed.confidence) ? parsed.confidence : 'medium',
+    note: String(parsed.note || 'Estimated by Claude using the asset description').trim(),
+    valuationSource: 'anthropic',
+  }
 }
 
 async function plaidRequest(pathname, body) {
@@ -546,6 +716,46 @@ async function handleResetPassword(req, res) {
   return json(res, 200, { user: serializeUser(updatedUser) })
 }
 
+async function handleEstimateAssets(req, res) {
+  const { assets = [] } = await readBody(req)
+
+  if (!Array.isArray(assets)) {
+    return json(res, 400, { error: 'assets must be an array' })
+  }
+
+  const valuedAssets = []
+
+  for (const asset of assets) {
+    const fallback = estimateAssetValue(asset)
+
+    if (!fallback.description) {
+      continue
+    }
+
+    if (!isAnthropicConfigured()) {
+      valuedAssets.push({ ...fallback, valuationSource: 'heuristic', note: `${fallback.note}. Claude not configured.` })
+      continue
+    }
+
+    try {
+      const aiEstimate = await estimateAssetValueWithClaude(asset)
+      valuedAssets.push(aiEstimate)
+    } catch (error) {
+      valuedAssets.push({
+        ...fallback,
+        valuationSource: 'heuristic',
+        note: `${fallback.note}. Claude fallback reason: ${error.message || 'unknown error'}`,
+      })
+    }
+  }
+
+  return json(res, 200, {
+    assets: valuedAssets,
+    totalEstimatedAssetValue: valuedAssets.reduce((sum, asset) => sum + asset.estimatedValue, 0),
+    pricingMode: isAnthropicConfigured() ? 'anthropic_with_heuristic_fallback' : 'heuristic_only',
+  })
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host}`)
@@ -563,6 +773,8 @@ const server = http.createServer(async (req, res) => {
         plaidConfigured: isPlaidConfigured(),
         plaidEnv: process.env.PLAID_ENV || 'sandbox',
         emailConfigured: isEmailConfigured(),
+        anthropicConfigured: isAnthropicConfigured(),
+        assetPricingMode: isAnthropicConfigured() ? 'anthropic_with_heuristic_fallback' : 'heuristic_only',
       })
     }
 
@@ -584,6 +796,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST' && url.pathname === '/api/auth/reset-password') {
       return await handleResetPassword(req, res)
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/assets/estimate') {
+      return await handleEstimateAssets(req, res)
     }
 
     if (req.method === 'POST' && url.pathname === '/api/plaid/create-link-token') {
